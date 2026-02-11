@@ -218,9 +218,9 @@ Cached path: `~/.cache/pip`
 
 Measured speed improvement:
 
-Without cache: ~3–4 minutes to install dependencies
+Without cache: ~20 seconds to install dependencies
 
-With cache: ~30–40 seconds (depending on dependency updates)
+With cache: ~8 seconds (1 for caching + 7 for installing)
 
 Security Scanning with Snyk
 
