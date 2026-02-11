@@ -4,6 +4,7 @@ on:
   push:
     paths:
       - 'app_go/**'
+      - '.github/workflows/go-ci.yml'
   pull_request:
     paths:
       - 'app_go/**'
