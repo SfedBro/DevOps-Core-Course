@@ -28,8 +28,11 @@ jobs:
       - name: Install revive linter
         run: go install github.com/mgechev/revive@latest
 
+      - name: Add Go bin to PATH
+        run: echo "$HOME/go/bin" >> $GITHUB_PATH
+
       - name: Run linter
-        run: $GOPATH/bin/revive -formatter stylish ./...
+        run: revive -formatter stylish ./...
 
       - name: Run tests with coverage
         working-directory: app_go
@@ -41,7 +44,6 @@ jobs:
           files: app_go/coverage.out
           flags: go
           name: go-coverage
-          fail-on-error: true
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
