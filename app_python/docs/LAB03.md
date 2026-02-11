@@ -220,7 +220,7 @@ Measured speed improvement:
 
 Without cache: ~20 seconds to install dependencies
 
-With cache: ~8 seconds (1 for caching + 7 for installing)
+With cache: ~10 seconds (0-1 for caching + 7-10 for installing)
 
 Security Scanning with Snyk
 
