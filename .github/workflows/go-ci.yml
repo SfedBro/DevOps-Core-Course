@@ -1,8 +1,5 @@
 name: Go CI + Docker Build + Coverage
 
-# --------------------
-# Triggers with path filters
-# --------------------
 on:
   push:
     paths:
@@ -21,7 +18,7 @@ jobs:
 
     steps:
       # --------------------
-      # Checkout repository
+      # Checkout code
       # --------------------
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -32,32 +29,44 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v4
         with:
-          go-version: 1.19
+          go-version: 1.21
+
+      # --------------------
+      # Cache Go modules
+      # --------------------
+      - name: Cache Go modules
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/go/pkg/mod
+            ~/go/bin
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
 
       # --------------------
       # Install dependencies
       # --------------------
-      - name: Get Go dependencies
+      - name: Install dependencies
         working-directory: app_go
-        run: |
-          go mod tidy
+        run: go mod tidy
 
       # --------------------
-      # Lint
+      # Install and run revive linter
       # --------------------
-      - name: Run golangci-lint
-        uses: golangci/golangci-lint-action@v4
-        with:
-          version: v1.54.2
-          working-directory: app_go
+      - name: Install revive
+        run: go install github.com/mgechev/revive@latest
+
+      - name: Run revive linter
+        working-directory: app_go
+        run: $GOPATH/bin/revive -formatter stylish ./...
 
       # --------------------
       # Run tests with coverage
       # --------------------
       - name: Run tests
         working-directory: app_go
-        run: |
-          go test ./... -v -coverprofile=coverage.out
+        run: go test ./... -v -coverprofile=coverage.out
 
       # --------------------
       # Upload coverage to Codecov
@@ -65,10 +74,10 @@ jobs:
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v5
         with:
+          token: ${{ secrets.CODECOV_TOKEN }}
           files: app_go/coverage.out
           flags: go
           name: go-coverage
-          token: ${{ secrets.CODECOV_TOKEN }}
 
       # --------------------
       # Docker login
@@ -80,7 +89,7 @@ jobs:
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       # --------------------
-      # Set version (CalVer)
+      # Set CalVer tag
       # --------------------
       - name: Set version (CalVer)
         id: version
