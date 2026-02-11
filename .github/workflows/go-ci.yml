@@ -10,84 +10,51 @@ on:
       - 'app_go/**'
 
 jobs:
-  test-and-build-go:
+  build-test-coverage:
     runs-on: ubuntu-latest
-
-    env:
-      IMAGE_NAME: sfedbro/app_go
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v3
 
       - name: Set up Go
         uses: actions/setup-go@v4
         with:
-          go-version: '1.21'
+          go-version: 1.21
 
-      # --------------------
-      # Install revive linter
-      # --------------------
-      - name: Install revive
+      - name: Enable Go modules
+        run: go env -w GO111MODULE=on
+
+      - name: Install revive linter
         run: go install github.com/mgechev/revive@latest
-        working-directory: app_go
 
-      - name: Run revive linter
-        run: $HOME/go/bin/revive -formatter stylish ./...
-        working-directory: app_go
+      - name: Run linter
+        run: $GOPATH/bin/revive -formatter stylish ./...
 
-      # --------------------
-      # Run tests with coverage
-      # --------------------
       - name: Run tests with coverage
         working-directory: app_go
-        run: |
-          go test ./... -v -coverprofile=coverage.out
-          ls -lah coverage.out
+        run: go test ./... -v -coverprofile=coverage.out
 
-      # --------------------
-      # Upload coverage to Codecov
-      # --------------------
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v5
         with:
-          token: ${{ secrets.CODECOV_TOKEN }}
           files: app_go/coverage.out
           flags: go
           name: go-coverage
-          fail_ci_if_error: true
+          fail-on-error: true
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
-      - name: Debug coverage file
+  docker-build:
+    runs-on: ubuntu-latest
+    needs: build-test-coverage
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Build Docker image
         run: |
-          echo "Listing app_go:"
-          ls -lah app_go
-          echo "Showing coverage:"
-          cat app_go/coverage.out | head -n 5
-
-      # --------------------
-      # Docker login
-      # --------------------
-      - name: Login to Docker Hub
-        uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-
-      # --------------------
-      # Set CalVer tag
-      # --------------------
-      - name: Set version (CalVer)
-        id: version
-        run: echo "VERSION=$(date +'%Y.%m')" >> $GITHUB_OUTPUT
-
-      # --------------------
-      # Build & push Docker image
-      # --------------------
-      - name: Build and push Docker image
-        uses: docker/build-push-action@v5
-        with:
-          context: app_go
-          push: true
-          tags: |
-            ${{ env.IMAGE_NAME }}:${{ steps.version.outputs.VERSION }}
-            ${{ env.IMAGE_NAME }}:latest
+          IMAGE_NAME=sfedbro/app_go
+          VERSION=$(date +'%Y.%m')
+          docker build -t $IMAGE_NAME:$VERSION -t $IMAGE_NAME:latest ./app_go
