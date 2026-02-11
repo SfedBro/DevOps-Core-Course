@@ -4,68 +4,39 @@ on:
   push:
     paths:
       - 'app_go/**'
-      - '.github/workflows/go-ci.yml'
   pull_request:
     paths:
       - 'app_go/**'
 
 jobs:
-  test-and-build:
+  test-and-build-go:
     runs-on: ubuntu-latest
 
     env:
       IMAGE_NAME: sfedbro/app_go
 
     steps:
-      # --------------------
-      # Checkout code
-      # --------------------
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # --------------------
-      # Setup Go
-      # --------------------
       - name: Set up Go
         uses: actions/setup-go@v4
         with:
-          go-version: 1.21
+          go-version: '1.21'
 
       # --------------------
-      # Cache Go modules
-      # --------------------
-      - name: Cache Go modules
-        uses: actions/cache@v3
-        with:
-          path: |
-            ~/go/pkg/mod
-            ~/go/bin
-          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
-          restore-keys: |
-            ${{ runner.os }}-go-
-
-      # --------------------
-      # Install dependencies
-      # --------------------
-      - name: Install dependencies
-        working-directory: app_go
-        run: go mod tidy
-
-      # --------------------
-      # Install and run revive linter
+      # Install revive linter
       # --------------------
       - name: Install revive
         run: go install github.com/mgechev/revive@latest
 
       - name: Run revive linter
-        working-directory: app_go
-        run: $GOPATH/bin/revive -formatter stylish ./...
+        run: $HOME/go/bin/revive -formatter stylish ./...
 
       # --------------------
       # Run tests with coverage
       # --------------------
       - name: Run tests
-        working-directory: app_go
         run: go test ./... -v -coverprofile=coverage.out
 
       # --------------------
@@ -75,7 +46,7 @@ jobs:
         uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-          files: app_go/coverage.out
+          files: coverage.out
           flags: go
           name: go-coverage
 
@@ -96,7 +67,7 @@ jobs:
         run: echo "VERSION=$(date +'%Y.%m')" >> $GITHUB_OUTPUT
 
       # --------------------
-      # Build and push Docker image
+      # Build & push Docker image
       # --------------------
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
