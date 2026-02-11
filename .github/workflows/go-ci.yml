@@ -30,15 +30,18 @@ jobs:
       # --------------------
       - name: Install revive
         run: go install github.com/mgechev/revive@latest
+        working-directory: app_go
 
       - name: Run revive linter
         run: $HOME/go/bin/revive -formatter stylish ./...
+        working-directory: app_go
 
       # --------------------
       # Run tests with coverage
       # --------------------
       - name: Run tests
         run: go test ./... -v -coverprofile=coverage.out
+        working-directory: app_go
 
       # --------------------
       # Upload coverage to Codecov
