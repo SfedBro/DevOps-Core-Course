@@ -29,13 +29,14 @@ jobs:
         run: go install github.com/mgechev/revive@latest
 
       - name: Run linter
-        run: revive -formatter stylish ./app_go/...
+        run: revive -formatter stylish ./...
+        working-directory: app_go
         env:
           PATH: ${{ env.GOPATH }}/bin:${{ env.PATH }}
 
       - name: Run tests with coverage
         working-directory: app_go
-        run: go test ./app_go/... -v -coverprofile=coverage.out
+        run: go test ./... -v -coverprofile=coverage.out
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v5
@@ -43,6 +44,8 @@ jobs:
           files: app_go/coverage.out
           flags: go
           name: go-coverage
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
   docker-build:
     runs-on: ubuntu-latest
