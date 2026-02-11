@@ -201,63 +201,70 @@ Output Example:
 ✔ Post Checkout repository\
 ✔ Complete job\
 
-##Task 3 — CI Best Practices & Security
+## Task 3 — CI Best Practices & Security
 
-Status Badge
-The workflow has a GitHub Actions status badge showing the current build status. It is visible at the top of the app_python/README.md file.
+### Status Badge
+
+The workflow has a GitHub Actions status badge showing the current build status. It is visible at the top of the `app_python/README.md` file.
 Example Markdown for badge:
 
 [![Python CI + Docker Build](https://github.com/SfedBro/DevOps-Core-Course/actions/workflows/python-ci.yml/badge.svg?branch=lab03)](https://github.com/SfedBro/DevOps-Core-Course/actions/workflows/python-ci.yml)
 
-Dependency Caching
-I implemented caching for Python dependencies with `actions/cache`to store pip cache between runs and significantly reduce workflow execution time.
+### Dependency Caching
 
-Cache key: `${{ runner.os }}-pip-${{ hashFiles('**/requirements*.txt') }}`
+I implemented caching for Python dependencies with `actions/cache` to store pip cache between runs and significantly reduce workflow execution time.
 
+Cache key: `${{ runner.os }}-pip-${{ hashFiles('**/requirements*.txt') }}`\
 Cached path: `~/.cache/pip`
 
-Measured speed improvement:
+<b>Measured speed improvement:</b>
 
-Without cache: ~20 seconds to install dependencies
+Without cache: ~20 seconds\
+With cache: ~10 seconds (0-1 for caching + 7-14 for installing)
 
-With cache: ~10 seconds (0-1 for caching + 7-10 for installing)
+Overall from 25% to 50% time decrease, which shows efficiency of such approach.
 
-Security Scanning with Snyk
+### Security Scanning with Snyk
 
-Integrated Snyk using snyk/actions/python@v1
+Integrated Snyk using `snyk/actions/python@v1`
 
 Snyk checks for known vulnerabilities in project dependencies.
 
-Environment variable SNYK_TOKEN is set via GitHub Secrets.
+Environment variable `SNYK_TOKEN` is set via GitHub Secrets.
 
-Example output snippet (all dependencies safe):
+In total it found 26 low vulnerabilities with no known exploits, and based on not-newest libraries versions(and especially 3.12-slim model for docker), so I did nothing with those(I will consider chanding docker image after finishing this lab).
 
-Testing /home/runner/work/DevOps-Core-Course/app_python...
-✔ Tested 15 dependencies for known issues, no vulnerable paths found.
+Result on GitHub:
 
-If vulnerabilities were found, remediation would include either upgrading the affected dependency or applying a patch recommended by Snyk.
+```
+✔ Tested /github/workspace for known issues, no vulnerable paths found.
+```
 
-CI Best Practices Applied
+### CI Best Practices Applied
 
-Dependency Caching — reduces build times and load on external package repositories.
+1. Dependency Caching — reduces build times and load on external package repositories.
 
-Fail-fast principle — linting, tests, and Snyk scans run before Docker build to avoid building images if code fails quality/security checks.
+2. Fail-fast principle — linting, tests, and Snyk scans run before Docker build to avoid building images if code fails quality/security checks.
 
-Path filtering — workflow triggers only on changes in app_python/ or workflow file, reducing unnecessary runs.
+3. Path filtering — workflow triggers only on changes in app_python/ or workflow file, reducing unnecessary runs.
 
-Environment secrets — sensitive information such as Docker Hub credentials and Snyk token are stored in GitHub Secrets.
+4. Environment secrets — sensitive information such as Docker Hub credentials and Snyk token are stored in GitHub Secrets.
 
-Versioning strategy for Docker images — CalVer tags (YYYY.MM) plus latest tag for reproducibility and continuous deployment.
+5. Versioning strategy for Docker images — CalVer tags (YYYY.MM) plus latest tag for reproducibility and continuous deployment.
 
-Terminal Output / Proof
+### Terminal Output / Proof
 
-Workflow runs successfully in GitHub Actions: ✅ green checkmark
+Workflow runs successfully in GitHub Actions - see it yourself
 
 Docker images are built and pushed with tags:
 
+```
 sfedbro/app_python:latest
 sfedbro/app_python:2026.02
+```
 
-Cached dependencies significantly reduce pipeline time.
+look in screenshots for lab03~ one
 
-Snyk scan completed without vulnerabilities.
+Cached dependencies significantly reduce pipeline time - look in workflows.
+
+Snyk scan completed without vulnerabilities - look in latest forkflow.
