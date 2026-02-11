@@ -43,6 +43,10 @@ jobs:
         run: go test ./... -v -coverprofile=coverage.out
         working-directory: app_go
 
+      - name: Debug coverage file
+        run: |
+          ls -la app_go
+
       # --------------------
       # Upload coverage to Codecov
       # --------------------
