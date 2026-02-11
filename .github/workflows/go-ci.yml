@@ -34,7 +34,8 @@ jobs:
           PATH: ${{ env.GOPATH }}/bin:${{ env.PATH }}
 
       - name: Run tests with coverage
-        run: go test ./app_go/... -v -coverprofile=app_go/coverage.out
+        working-directory: app_go
+        run: go test ./app_go/... -v -coverprofile=coverage.out
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v5
@@ -42,8 +43,6 @@ jobs:
           files: app_go/coverage.out
           flags: go
           name: go-coverage
-        env:
-          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
   docker-build:
     runs-on: ubuntu-latest
