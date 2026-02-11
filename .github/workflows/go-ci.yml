@@ -50,7 +50,7 @@ jobs:
         uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-          files: coverage.out
+          files: app_go/coverage.out
           flags: go
           name: go-coverage
 

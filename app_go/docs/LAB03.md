@@ -43,3 +43,13 @@ Coverage reports generated using Go's `-coverprofile` and optionally uploaded to
 - Only triggers for relevant changes in respective directories
 - Docker images for Go app successfully built and pushed
 - Coverage reports uploaded to Codecov
+
+### Path Filters — Proof of Selective Triggering
+
+The workflows were tested to ensure selective triggering:
+
+- Change in `app_go/` triggered ONLY Go CI workflow
+- Change in `app_python/` triggered ONLY Python CI workflow
+- Change in root `README.md` did NOT trigger any workflow
+
+This proves correct path-based filtering for monorepo setup.
