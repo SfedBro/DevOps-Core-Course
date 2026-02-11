@@ -1,8 +1,13 @@
-name: Python CI + Docker Build
+name: Python CI + Docker Build + Snyk
 
 on:
   push:
+    paths:
+      - 'app_python/**'
+      - '.github/workflows/python-ci.yml'
   pull_request:
+    paths:
+      - 'app_python/**'
 
 jobs:
   test-and-build:
@@ -12,8 +17,22 @@ jobs:
       IMAGE_NAME: sfedbro/app_python
 
     steps:
+      # --------------------
+      # Checkout code
+      # --------------------
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      # --------------------
+      # Cache pip dependencies
+      # --------------------
+      - name: Cache pip
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements*.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
 
       # --------------------
       # Python setup
@@ -23,28 +42,40 @@ jobs:
         with:
           python-version: '3.12'
 
+      # --------------------
+      # Install dependencies
+      # --------------------
       - name: Install dependencies
         working-directory: app_python
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          pip install pytest flake8
+          pip install pytest flake8 httpx
 
       # --------------------
       # Lint
       # --------------------
       - name: Run flake8
         working-directory: app_python
-        run: |
-          flake8 .
+        run: flake8 .
 
       # --------------------
-      # Tests
+      # Run tests
       # --------------------
       - name: Run pytest
         working-directory: app_python
-        run: |
-          pytest -v
+        run: pytest -v
+
+      # --------------------
+      # Snyk security scan
+      # --------------------
+      - name: Snyk test
+        uses: snyk/actions/python@v1
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          command: test
+          working-directory: app_python
 
       # --------------------
       # Docker login
@@ -60,11 +91,10 @@ jobs:
       # --------------------
       - name: Set version (CalVer)
         id: version
-        run: |
-          echo "VERSION=$(date +'%Y.%m')" >> $GITHUB_OUTPUT
+        run: echo "VERSION=$(date +'%Y.%m')" >> $GITHUB_OUTPUT
 
       # --------------------
-      # Docker build & push
+      # Build & push Docker image
       # --------------------
       - name: Build and push Docker image
         uses: docker/build-push-action@v5

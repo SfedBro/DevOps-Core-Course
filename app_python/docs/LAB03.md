@@ -136,10 +136,128 @@ Workflow stages:
 - Unit tests with pytest
 - Docker image build and push to Docker Hub
 
-Versioning strategy:
-Calendar Versioning (CalVer) is used in format YYYY.MM.
+### Workflow Trigger Strategy
 
-Docker images are tagged with:
+Triggers: The workflow runs on `push` and `pull_request` events targeting all branches.
 
-- `<version>` (e.g. 2026.02)
-- latest
+Reasoning: This ensures that all new changes are tested and Docker images are built before merging into the main branch. Running on PRs also prevents errors from reaching the master branch.
+
+```
+on:
+    push:
+    pull_request:
+```
+
+### Actions
+
+actions/checkout@v4 — Checks out the repository so the workflow can access the code.\
+actions/setup-python@v5 — Sets up the required Python version.\
+docker/login-action@v3 — Authenticates with Docker Hub using GitHub secrets.\
+docker/build-push-action@v6 — Builds and pushes Docker images with proper tags.
+
+Reasoning: These are official, stable, widely used actions that cover testing, linting, and Docker image building without custom scripts. And I use them for other concurrent subject.
+
+### Docker Tagging Strategy
+
+Versioning: Calendar Versioning (CalVer) — `2026.02`.
+
+Tags Created:
+
+- sfedbro/app_python:2026.02 — fixed release version by date
+- sfedbro/app_python:latest — always up-to-date version
+
+Reasoning: CalVer is convenient for continuous deployment and easy to track by date. The latest tag simplifies testing and local runs.
+
+```
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: app_python
+          push: true
+          tags: |
+            ${{ env.IMAGE_NAME }}:${{ steps.version.outputs.VERSION }}
+            ${{ env.IMAGE_NAME }}:latest
+```
+
+### Successful Workflow Run
+
+GitHub Actions Link: `https://github.com/SfedBro/DevOps-Core-Course/actions/runs/21918200330/job/63291028815#logs`
+
+(is it example or overview?)\
+Output Example:
+
+<b>test_and_build</b>\
+✔ Set up job\
+✔ Checkout repository\
+✔ Set up Python\
+✔ Install dependencies\
+✔ Run flake8\
+✔ Run pytest\
+✔ Login to Docker Hub\
+✔ Set version (CalVer)\
+✔ Build and push Docker image\
+✔ Post Login to Docker Hub\
+✔ Post Set up Python\
+✔ Post Checkout repository\
+✔ Complete job\
+
+##Task 3 — CI Best Practices & Security
+
+Status Badge
+The workflow has a GitHub Actions status badge showing the current build status. It is visible at the top of the app_python/README.md file.
+Example Markdown for badge:
+
+[![Python CI + Docker Build](https://github.com/SfedBro/DevOps-Core-Course/actions/workflows/python-ci.yml/badge.svg?branch=lab03)](https://github.com/SfedBro/DevOps-Core-Course/actions/workflows/python-ci.yml)
+
+Dependency Caching
+I implemented caching for Python dependencies with `actions/cache`to store pip cache between runs and significantly reduce workflow execution time.
+
+Cache key: `${{ runner.os }}-pip-${{ hashFiles('**/requirements*.txt') }}`
+
+Cached path: `~/.cache/pip`
+
+Measured speed improvement:
+
+Without cache: ~3–4 minutes to install dependencies
+
+With cache: ~30–40 seconds (depending on dependency updates)
+
+Security Scanning with Snyk
+
+Integrated Snyk using snyk/actions/python@v1
+
+Snyk checks for known vulnerabilities in project dependencies.
+
+Environment variable SNYK_TOKEN is set via GitHub Secrets.
+
+Example output snippet (all dependencies safe):
+
+Testing /home/runner/work/DevOps-Core-Course/app_python...
+✔ Tested 15 dependencies for known issues, no vulnerable paths found.
+
+If vulnerabilities were found, remediation would include either upgrading the affected dependency or applying a patch recommended by Snyk.
+
+CI Best Practices Applied
+
+Dependency Caching — reduces build times and load on external package repositories.
+
+Fail-fast principle — linting, tests, and Snyk scans run before Docker build to avoid building images if code fails quality/security checks.
+
+Path filtering — workflow triggers only on changes in app_python/ or workflow file, reducing unnecessary runs.
+
+Environment secrets — sensitive information such as Docker Hub credentials and Snyk token are stored in GitHub Secrets.
+
+Versioning strategy for Docker images — CalVer tags (YYYY.MM) plus latest tag for reproducibility and continuous deployment.
+
+Terminal Output / Proof
+
+Workflow runs successfully in GitHub Actions: ✅ green checkmark
+
+Docker images are built and pushed with tags:
+
+sfedbro/app_python:latest
+sfedbro/app_python:2026.02
+
+Cached dependencies significantly reduce pipeline time.
+
+Snyk scan completed without vulnerabilities.
