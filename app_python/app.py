@@ -34,7 +34,7 @@ def main_endpoint(request: Request):
             "uptime_seconds": get_uptime()["seconds"],
             "uptime_human": get_uptime()["human"],
             "current_time": get_current_time(),
-            "timezone": "UTC", # Static
+            "timezone": "UTC", # Static for simplicity
         },
         "request": {
             "client_ip": request.client.host,
@@ -42,7 +42,7 @@ def main_endpoint(request: Request):
             "method": request.method,
             "path": request.url.path,
         },
-        "endpoints": [ # TODO: make dynamic
+        "endpoints": [
             {"path": "/", "method": "GET", "description": "Service information"},
             {"path": "/health", "method": "GET", "description": "Health check"},
         ],

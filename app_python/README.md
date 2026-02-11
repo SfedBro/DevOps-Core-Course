@@ -85,6 +85,20 @@ docker pull sfedbro/app_python:lab02
 docker run -p 5000:5000 sfedbro/app_python:lab02
 ```
 
+## Testing
+
+This project uses pytest for unit testing.
+
+To run tests locally:
+
+```bash
+pytest -v
+```
+
 ## Licence
 
 MIT Licence
+
+```
+
+```
