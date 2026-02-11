@@ -70,8 +70,6 @@ jobs:
           flags: go
           name: go-coverage
           fail_ci_if_error: true
-        env:
-          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
   docker-build:
     runs-on: ubuntu-latest
