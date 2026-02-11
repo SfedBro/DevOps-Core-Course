@@ -44,8 +44,6 @@ jobs:
           files: app_go/coverage.out
           flags: go
           name: go-coverage
-        env:
-          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
   docker-build:
     runs-on: ubuntu-latest
