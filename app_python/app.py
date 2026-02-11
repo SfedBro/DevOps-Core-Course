@@ -15,7 +15,7 @@ PORT = int(os.getenv("PORT", 5000))
 DEBUG = os.getenv("DEBUG", "false").lower() == "true"
 
 # ======== Setup ========
-START_TIME = datetime.now(timezone.utc) # UTC for simplicity
+START_TIME = datetime.now(timezone.utc)     # UTC for simplicity
 
 app = FastAPI()
 
@@ -35,7 +35,7 @@ def main_endpoint(request: Request):
             "uptime_seconds": get_uptime()["seconds"],
             "uptime_human": get_uptime()["human"],
             "current_time": get_current_time(),
-            "timezone": "UTC", # Static for simplicity
+            "timezone": "UTC",      # Static for simplicity
         },
         "request": {
             "client_ip": request.client.host,

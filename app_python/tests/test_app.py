@@ -67,4 +67,3 @@ def test_system_info_fields():
 def test_not_found_endpoint():
     response = client.get("/does-not-exist")
     assert response.status_code == 404
-
