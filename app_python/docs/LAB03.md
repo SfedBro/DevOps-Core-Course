@@ -263,7 +263,9 @@ sfedbro/app_python:latest
 sfedbro/app_python:2026.02
 ```
 
-look in screenshots for lab03~ one
+look in screenshots for lab03~ one\
+or follow the link: `https://hub.docker.com/repository/docker/sfedbro/app_python/tags/latest/sha256-51af8e10b982eaae63b48c45f6f138cd663f4e8d559fd8158a20e7e0daed94b6` for exact version\
+or: `https://hub.docker.com/repository/docker/sfedbro/app_python/general` for python_app in general.
 
 Cached dependencies significantly reduce pipeline time - look in workflows.
 
