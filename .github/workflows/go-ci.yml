@@ -29,7 +29,9 @@ jobs:
         run: go install github.com/mgechev/revive@latest
 
       - name: Run linter
-        run: $GOPATH/bin/revive -formatter stylish ./app_go/...
+        run: revive -formatter stylish ./app_go/...
+        env:
+          PATH: ${{ env.GOPATH }}/bin:${{ env.PATH }}
 
       - name: Run tests with coverage
         run: go test ./app_go/... -v -coverprofile=app_go/coverage.out
