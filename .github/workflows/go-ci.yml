@@ -39,13 +39,13 @@ jobs:
       # --------------------
       # Run tests with coverage
       # --------------------
-      - name: Run tests
-        run: go test ./... -v -coverprofile=coverage.out
+      - name: Run tests with coverage
         working-directory: app_go
-
-      - name: Debug coverage file
         run: |
-          ls -la app_go
+          go test ./... -v -coverprofile=coverage.out
+          echo "=== Coverage file content ==="
+          ls -la
+          head -n 5 coverage.out
 
       # --------------------
       # Upload coverage to Codecov
@@ -57,6 +57,8 @@ jobs:
           files: app_go/coverage.out
           flags: go
           name: go-coverage
+          verbose: true
+          fail_ci_if_error: true
 
       # --------------------
       # Docker login
