@@ -61,7 +61,7 @@ jobs:
             echo "Coverage $COVERAGE% is below threshold $THRESHOLD%"
             exit 1
           fi
-        # theshold 40 is optimal for my tests
+        # theshold 40 works for my tests
 
       - name: Upload coverage to Codecov
         working-directory: app_go
