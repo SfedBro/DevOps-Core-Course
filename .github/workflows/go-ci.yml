@@ -64,13 +64,13 @@ jobs:
         # theshold 40 is optimal for my tests
 
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v5
-        with:
-          files: ./app_go/coverage.out
-          flags: go
-          name: go-coverage
-          fail_ci_if_error: true
-          root_dir: app_go
+        working-directory: app_go
+        run: |
+          curl -Os https://cli.codecov.io/latest/linux/codecov
+          chmod +x codecov
+          ./codecov upload-coverage --fail-on-error --git-service github --file coverage.out --flag go --name go-coverage
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
   docker-build:
     runs-on: ubuntu-latest
