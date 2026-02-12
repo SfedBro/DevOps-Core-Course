@@ -70,6 +70,7 @@ jobs:
           flags: go
           name: go-coverage
           fail_ci_if_error: true
+          root_dir: app_go
 
   docker-build:
     runs-on: ubuntu-latest
