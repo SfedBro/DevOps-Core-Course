@@ -1,1 +1,33 @@
+# Python
+__pycache__/
+*.py[cod]
+venv/
+*.log
+
 test
+.secrets/
+
+# Terraform
+*.tfstate
+*.tfstate.*
+.terraform/
+terraform.tfvars
+*.tfvars
+.terraform.lock.hcl
+
+# Pulumi
+pulumi/venv/
+Pulumi.*.yaml
+
+# Keys
+*.json
+*.pem
+*.key
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
