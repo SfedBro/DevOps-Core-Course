@@ -5,7 +5,9 @@ venv/
 *.log
 
 test
-.secrets/
+secrets/
+*.key
+*.json
 
 # Terraform
 *.tfstate
