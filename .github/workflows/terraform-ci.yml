@@ -26,6 +26,9 @@ jobs:
       - name: Create dummy key
         run: echo "{}" > dummy.json
 
+      - name: Terraform init
+        run: terraform init
+
       - name: Terraform Validate
         run: terraform validate
         env:
