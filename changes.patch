@@ -1,0 +1,1956 @@
+diff --git a/.github/workflows/go-ci.yml b/.github/workflows/go-ci.yml
+deleted file mode 100644
+index 2f03809..0000000
+--- a/.github/workflows/go-ci.yml
++++ /dev/null
+@@ -1,87 +0,0 @@
+-name: Go CI + Docker Build + Coverage
+-
+-on:
+-  push:
+-    paths:
+-      - 'app_go/**'
+-      - '.github/workflows/go-ci.yml'
+-  pull_request:
+-    paths:
+-      - 'app_go/**'
+-
+-jobs:
+-  build-test-coverage:
+-    runs-on: ubuntu-latest
+-
+-    steps:
+-      - name: Checkout repository
+-        uses: actions/checkout@v3
+-
+-      - name: Set up Go
+-        uses: actions/setup-go@v4
+-        with:
+-          go-version: 1.25
+-
+-      - name: Enable Go modules
+-        run: go env -w GO111MODULE=on
+-
+-      - name: Cache Go modules and binaries
+-        uses: actions/cache@v3
+-        with:
+-          path: |
+-            ${{ env.GOPATH }}/pkg/mod
+-            ${{ env.GOPATH }}/bin
+-          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+-          restore-keys: |
+-            ${{ runner.os }}-go-
+-
+-      - name: Install revive linter if not cached
+-        run: |
+-          if [ ! -f "${GOPATH}/bin/revive" ]; then
+-            go install github.com/mgechev/revive@latest
+-          fi
+-
+-      - name: Run linter
+-        run: revive -formatter stylish ./...
+-        working-directory: app_go
+-        env:
+-          PATH: ${{ env.GOPATH }}/bin:${{ env.PATH }}
+-
+-      - name: Run tests with coverage
+-        working-directory: app_go
+-        run: go test ./... -v -coverprofile=coverage.out
+-
+-      - name: Verify coverage threshold
+-        working-directory: app_go
+-        run: |
+-          COVERAGE=$(go tool cover -func=coverage.out | grep total: | awk '{print substr($3, 1, length($3)-1)}')
+-          echo "Coverage is $COVERAGE%"
+-          THRESHOLD=40
+-          if (( $(echo "$COVERAGE < $THRESHOLD" | bc -l) )); then
+-            echo "Coverage $COVERAGE% is below threshold $THRESHOLD%"
+-            exit 1
+-          fi
+-        # theshold 40 works for my tests
+-
+-      - name: Upload coverage to Codecov
+-        working-directory: app_go
+-        run: |
+-          curl -Os https://cli.codecov.io/latest/linux/codecov
+-          chmod +x codecov
+-          ./codecov upload-coverage --fail-on-error --git-service github --file coverage.out --flag go --name go-coverage
+-        env:
+-          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+-
+-  docker-build:
+-    runs-on: ubuntu-latest
+-    needs: build-test-coverage
+-
+-    steps:
+-      - name: Checkout repository
+-        uses: actions/checkout@v3
+-
+-      - name: Build Docker image
+-        run: |
+-          IMAGE_NAME=sfedbro/app_go
+-          VERSION=$(date +'%Y.%m')
+-          docker build -t $IMAGE_NAME:$VERSION -t $IMAGE_NAME:latest ./app_go
+diff --git a/.github/workflows/python-ci.yml b/.github/workflows/python-ci.yml
+deleted file mode 100644
+index 89edd51..0000000
+--- a/.github/workflows/python-ci.yml
++++ /dev/null
+@@ -1,103 +0,0 @@
+-name: Python CI + Docker Build + Snyk
+-
+-on:
+-  push:
+-    paths:
+-      - 'app_python/**'
+-      - '.github/workflows/python-ci.yml'
+-  pull_request:
+-    paths:
+-      - 'app_python/**'
+-
+-jobs:
+-  test-and-build:
+-    runs-on: ubuntu-latest
+-
+-    env:
+-      IMAGE_NAME: sfedbro/app_python
+-
+-    steps:
+-      # --------------------
+-      # Checkout code
+-      # --------------------
+-      - name: Checkout repository
+-        uses: actions/checkout@v4
+-
+-      # --------------------
+-      # Cache pip dependencies
+-      # --------------------
+-      - name: Cache pip
+-        uses: actions/cache@v3
+-        with:
+-          path: ~/.cache/pip
+-          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements*.txt') }}
+-          restore-keys: |
+-            ${{ runner.os }}-pip-
+-
+-      # --------------------
+-      # Python setup
+-      # --------------------
+-      - name: Set up Python
+-        uses: actions/setup-python@v5
+-        with:
+-          python-version: '3.12'
+-
+-      # --------------------
+-      # Install dependencies
+-      # --------------------
+-      - name: Install dependencies
+-        run: |
+-          python -m pip install --upgrade pip
+-          pip install -r app_python/requirements.txt
+-          pip install pytest flake8 httpx
+-
+-      # --------------------
+-      # Lint
+-      # --------------------
+-      - name: Run flake8
+-        run: flake8 app_python
+-
+-      # --------------------
+-      # Run tests
+-      # --------------------
+-      - name: Run pytest
+-        run: pytest -v app_python
+-
+-      # --------------------
+-      # Snyk security scan
+-      # --------------------
+-      - name: Snyk test
+-        uses: snyk/actions/python@v1
+-        env:
+-          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+-        with:
+-          command: test
+-          args: --file=app_python/requirements.txt --skip-unresolved
+-
+-      # --------------------
+-      # Docker login
+-      # --------------------
+-      - name: Login to Docker Hub
+-        uses: docker/login-action@v3
+-        with:
+-          username: ${{ secrets.DOCKERHUB_USERNAME }}
+-          password: ${{ secrets.DOCKERHUB_TOKEN }}
+-
+-      # --------------------
+-      # Set CalVer tag
+-      # --------------------
+-      - name: Set version (CalVer)
+-        id: version
+-        run: echo "VERSION=$(date +'%Y.%m')" >> $GITHUB_OUTPUT
+-
+-      # --------------------
+-      # Build & push Docker image
+-      # --------------------
+-      - name: Build and push Docker image
+-        uses: docker/build-push-action@v5
+-        with:
+-          context: app_python
+-          push: true
+-          tags: |
+-            ${{ env.IMAGE_NAME }}:${{ steps.version.outputs.VERSION }}
+-            ${{ env.IMAGE_NAME }}:latest
+diff --git a/app_go/Dockerfile b/app_go/Dockerfile
+deleted file mode 100644
+index 67415e7..0000000
+--- a/app_go/Dockerfile
++++ /dev/null
+@@ -1,25 +0,0 @@
+-# Stage 1: Build
+-FROM golang:1.25-alpine AS builder
+-
+-WORKDIR /app_go
+-
+-COPY go.mod ./
+-COPY go.sum ./
+-RUN go mod download
+-
+-COPY . .
+-
+-RUN go build -o app
+-
+-# Stage 2: Run
+-FROM alpine:latest
+-
+-WORKDIR /app_go
+-
+-COPY --from=builder /app_go/app .
+-
+-EXPOSE 8080
+-
+-USER nobody:nobody
+-
+-CMD ["./app"]
+diff --git a/app_go/README.md b/app_go/README.md
+deleted file mode 100644
+index bb04470..0000000
+--- a/app_go/README.md
++++ /dev/null
+@@ -1,58 +0,0 @@
+-# devops-info-service (Go)
+-
+-![Go Coverage](https://img.shields.io/codecov/c/github/sfedbro/devops-core-course/lab03?flag=go)
+-
+-## Overview
+-
+-This is the Go implementation of the DevOps Info Service. It provides the same API as the Python version.
+-
+-## Prerequisites
+-
+-- Go 1.20+ installed
+-
+-## Build
+-
+-```bash
+-go build -o devops-info-service.exe
+-```
+-
+-## Run
+-
+-```
+-# Default port 8080
+-./devops-info-service.exe
+-
+-# Or specify port via environment variable
+-PORT=3000 ./devops-info-service.exe
+-```
+-
+-## API Endpoints
+-
+-- `GET /` - Service and system information
+-- `GET /health` - Health check
+-
+-## Docker
+-
+-Docker image can be built via CI or locally:
+-
+-```
+-docker build -t sfedbro/app_go:latest ./app_go
+-docker build -t sfedbro/app_go:2026.02 ./app_go
+-```
+-
+-https://hub.docker.com/repository/docker/sfedbro/app_go/general
+-
+-## Test Coverage
+-
+-Coverage generated via `go test -coverprofile=coverage.out`
+-
+-Reports uploaded to Codecov\
+-https://app.codecov.io/github/sfedbro/devops-core-course/tree/lab03
+-
+-Current coverage: 68.11%\
+-![Go Coverage](https://img.shields.io/codecov/c/github/sfedbro/devops-core-course/lab03?flag=go)
+-
+-## Licence
+-
+-MIT Licence
+-`To be made`
+diff --git a/app_go/coverage.out b/app_go/coverage.out
+deleted file mode 100644
+index 8980698..0000000
+--- a/app_go/coverage.out
++++ /dev/null
+@@ -1,15 +0,0 @@
+-mode: set
+-devops-info-service/main.go:59.58,65.16 5 1
+-devops-info-service/main.go:65.16,68.3 2 0
+-devops-info-service/main.go:70.2,71.16 2 1
+-devops-info-service/main.go:71.16,74.3 2 0
+-devops-info-service/main.go:76.2,109.56 3 1
+-devops-info-service/main.go:109.56,111.3 1 0
+-devops-info-service/main.go:114.60,125.2 4 1
+-devops-info-service/main.go:127.54,129.2 1 1
+-devops-info-service/main.go:131.13,133.16 2 0
+-devops-info-service/main.go:133.16,135.3 1 0
+-devops-info-service/main.go:137.2,138.16 2 0
+-devops-info-service/main.go:138.16,140.3 1 0
+-devops-info-service/main.go:142.2,148.16 6 0
+-devops-info-service/main.go:148.16,150.3 1 0
+diff --git a/app_go/devops-info-service.exe b/app_go/devops-info-service.exe
+deleted file mode 100644
+index 8e3c47b..0000000
+Binary files a/app_go/devops-info-service.exe and /dev/null differ
+diff --git a/app_go/docs/GO.md b/app_go/docs/GO.md
+deleted file mode 100644
+index a77baf3..0000000
+--- a/app_go/docs/GO.md
++++ /dev/null
+@@ -1,43 +0,0 @@
+-# Why Go for the DevOps Info Service?
+-
+-## Overview
+-
+-Go (Golang) was chosen as the compiled language for this bonus task for several key reasons aligned with the goals of the DevOps Info Service and containerization:
+-
+-### 1. Small Binaries & Easy Deployment
+-
+-- Go compiles to a static standalone binary with no external dependencies.
+-- This makes container images smaller and simpler by avoiding the need for a language runtime.
+-
+-### 2. Fast Compilation and Execution
+-
+-- Go’s compilation is fast compared to other compiled languages like C++ or Rust.
+-- The resulting binary runs with minimal overhead, providing excellent runtime performance.
+-
+-### 3. Built-in Concurrency
+-
+-- Go’s goroutines and channels simplify handling multiple simultaneous requests efficiently.
+-- The standard `net/http` package is powerful and lightweight for web servers.
+-
+-### 4. Simplicity and Readability
+-
+-- Go’s simple syntax and standard tooling encourage clean, maintainable code.
+-- This is valuable in DevOps environments where reliability and clarity are critical.
+-
+-### 5. Strong Ecosystem
+-
+-- Go has widespread adoption in cloud-native, container, and DevOps tooling (e.g., Docker, Kubernetes are written in Go).
+-- This ensures familiarity and community support relevant to the project.
+-
+-## Alternatives Considered
+-
+-| Language         | Pros                                | Cons                                       |
+-| ---------------- | ----------------------------------- | ------------------------------------------ |
+-| Rust             | Memory safety, performance          | Steeper learning curve, slower compilation |
+-| Java/Spring Boot | Enterprise features                 | Large runtime, heavy containers            |
+-| C#/ASP.NET Core  | Cross-platform .NET ecosystem       | Requires .NET runtime, bigger images       |
+-| Go               | Fast, small static binaries, simple | Limited language features vs Rust          |
+-
+-## Conclusion
+-
+-Go’s strengths in producing simple, fast, standalone executables make it a great fit for the DevOps Info Service bonus task, especially considering the multi-stage Docker build and deployment goals.
+diff --git a/app_go/docs/LAB01.md b/app_go/docs/LAB01.md
+deleted file mode 100644
+index 7ae2262..0000000
+--- a/app_go/docs/LAB01.md
++++ /dev/null
+@@ -1,137 +0,0 @@
+-# Lab 1 - DevOps Info Service: Web Application Initialisation (Go Implementation)
+-
+-## Overview
+-
+-This service provides detailed information about itself and its runtime environment. It exposes endpoints to retrieve system info, runtime status, and health check, forming a foundation for further DevOps tooling.
+-
+-**Prerequisites**
+-
+-- Go 1.25+ installed
+-
+-## Installation
+-
+-Clone the repo and navigate to the Go app folder:
+-
+-```
+-git clone <your-repo-url>
+-cd app_go
+-```
+-
+-Initialize and download dependencies (if needed):
+-
+-```
+-go mod tidy
+-```
+-
+-## Build
+-
+-Build the binary executable:
+-
+-```
+-go build -o devops-info-service.exe
+-# without .exe for non-windows systems
+-```
+-
+-This produces `devops-info-service.exe` on Windows (developer does not know other systems).
+-
+-## Running the Application
+-
+-Run the binary with optional environment variables:
+-
+-```
+-# Unix / Bash
+-
+-HOST=0.0.0.0 PORT=8080 ./devops-info-service
+-
+-# Windows PowerShell
+-
+-$env:HOST="0.0.0.0"
+-$env:PORT="8080"
+-.\devops-info-service.exe
+-```
+-
+-By default, the app listens on `0.0.0.0:8080` if no environment variables are set.
+-
+-## API Endpoints
+-
+-`GET /` - Service and system information (JSON)
+-`GET /health` - Health check status (JSON)
+-
+-## JSON Structure
+-
+-The JSON returned matches the Python version, including:
+-
+-- Service metadata (name, version, description, framework)
+-
+-- System info (hostname, platform, architecture, CPU count, Go version)
+-
+-- Runtime info (uptime in seconds, human-readable uptime, current time, timezone)
+-
+-- Request info (client IP, user agent, method, path)
+-
+-- List of endpoints
+-
+-## Framework Selection & Language Justification
+-
+-- Chose Go for its simple concurrency model, small binaries, fast compile times, and widespread use in DevOps tooling.
+-
+-- Go's standard library includes an efficient HTTP server which simplifies dependencies and deployment.
+-
+-- The compiled binary enables easy multi-stage Docker builds.
+-
+-## Best Practices Applied
+-
+-- Clean Code Organization: Clear handlers and modular functions.
+-
+-- Error Handling: Proper error checks and logging.
+-
+-- Logging: Basic logs on server start and incoming requests helps with observing the app status.
+-
+-- Configuration via Environment Variables: Enables flexible deployment without code changes.
+-
+-- JSON Encoding: Uses Go's `encoding/json` for consistent API responses.
+-
+-## API Documentation & Testing
+-
+-Example `curl` requests:
+-
+-```
+-curl -X GET "http://localhost:8080/" -H "accept: application/json"
+-curl -X GET "http://localhost:8080/health" -H "accept: application/json"
+-```
+-
+-Example response snippet from `/`:
+-
+-```
+-{
+-    "service": {
+-        "name": "devops-info-service",
+-        "version": "1.0.0",
+-        "description": "DevOps course info service",
+-        "framework": "Go net/http"
+-    },
+-    "system": {
+-        "hostname": "SfedBroPC",
+-        "platform": "windows",
+-        "architecture": "amd64",
+-        "cpu_count": 16,
+-        "go_version": "go1.25.6"
+-    },
+-    ...
+-}
+-```
+-
+-## Challenges & Solutions
+-
+-Managing JSON struct tags for proper response formatting.
+-
+-Output differs with pythons os library(no adequate solution)
+-
+-## Additional Notes
+-
+-Go binaries are significantly smaller and start faster compared to Python interpreted mode.
+-
+-### Comparing binary sizes
+-
+-    2.61 Kb - python(4 Kb on my disk)
+-    7.98 Mb - go
+diff --git a/app_go/docs/LAB02.md b/app_go/docs/LAB02.md
+deleted file mode 100644
+index 98d37c8..0000000
+--- a/app_go/docs/LAB02.md
++++ /dev/null
+@@ -1,77 +0,0 @@
+-# LAB02 - Multi-stage Dockerfile for app_go
+-
+-## Multi-stage Strategy
+-
+-Для минимизации размера и повышения безопасности образа используется multi-stage сборка:
+-
+-- Builder stage: использует образ `golang:1.25-alpine`, в котором компилируется приложение. Там доступны все инструменты для сборки и зависимости.
+-
+-- Final stage: использует минимальный `alpine:latest` образ, куда копируется только скомпилированный бинарный код. Это снижает размер и повышает безопасность.
+-
+-Такой подход позволяет исключить из итогового образа исходники, инструменты сборки и ненужные библиотеки.
+-
+-## Terminal Output & Image Sizes
+-
+-Пример вывода при сборке:
+-
+-```
+-$ docker build -t sfedbro/app_go:lab02 .
+-
+-[+] Building 17.1s (15/15) FINISHED                                                                docker:desktop-linux
+-# При первом запуске
+-
+-[+] Building 1.0s (15/15) FINISHED                                                                 docker:desktop-linux
+-# При последующих
+-```
+-
+-Пример размеров:
+-
+-```
+-$ docker images sfedbro/app_go:lab02
+-IMAGE                  ID             DISK USAGE   CONTENT SIZE   EXTRA
+-sfedbro/app_go:lab02   17b08811c0e7       16.8MB             0B    U
+-```
+-
+-### Image Sizes Comparison
+-
+-##### У меня не показывается размер, так что нормально сравнить не вышло, вывод в терминале выдаёт пустые таблицы, а времени исправить не хватает...
+-
+-```
+-Image	Tag	Size (по официальным данным или измерено локально)
+-sfedbro/app_go	lab02	16.8MB (локально измерено)
+-golang:1.25-alpine	latest	~320MB (официальный размер образа Docker Hub)
+-alpine:latest	latest	~5MB (официальный размер образа Docker Hub)
+-```
+-
+-Multi-stage сборка позволила сократить размер итогового образа до 16.8MB, исключив из финального контейнера инструменты и зависимости для сборки.
+-
+-## Analysis of Size Reduction and Why It Matters
+-
+-#### Это опять же было в лекции
+-
+-- Многослойная сборка позволяет собрать приложение в тяжелом образе с инструментами, а запускать в легком - это экономит дисковое пространство и ускоряет загрузку.
+-
+-- Меньший размер уменьшает время развертывания и обновления контейнера.
+-
+-- Минимальный образ — меньше уязвимостей, что улучшает безопасность.
+-
+-## Technical Explanation of Each Stage
+-
+-1. Builder stage (golang:1.25-alpine):
+-
+-- Копируются go.mod и go.sum, скачиваются зависимости (используя кэш).
+-- Копируются исходные файлы.
+-- Собирается бинарный файл app.
+-
+-2. Final stage (alpine:latest):
+-
+-- Создается минимальный контейнер.
+-- Копируется только бинарь из builder stage.
+-- Устанавливается рабочая директория и открывается порт.
+-- Запускается приложение.
+-
+-## Security Benefits
+-
+-- Минимализм финального образа снижает потенциальные уязвимости и поверхность атаки.
+-- Отсутствие компиляторов и исходников в контейнере повышает безопасность и облегчает аудит.
+-- Такой подход улучшает контроль и уменьшает риски при развертывании.
+diff --git a/app_go/docs/LAB03.md b/app_go/docs/LAB03.md
+deleted file mode 100644
+index 57a3e0d..0000000
+--- a/app_go/docs/LAB03.md
++++ /dev/null
+@@ -1,56 +0,0 @@
+-# Lab 3 — Continuous Integration (CI/CD)
+-
+-## Bonus Task — Multi-App CI & Test Coverage
+-
+-### Multi-App CI
+-
+-A separate workflow for the Go app was created: `.github/workflows/go-ci.yml`.
+-
+-**Path filters**:
+-
+-- Python workflow runs only when `app_python/` changes.
+-- Go workflow runs only when `app_go/` changes.
+-
+-This ensures that workflows are triggered selectively and independently, saving CI resources and avoiding unnecessary builds.
+-
+-### Go Workflow
+-
+-- Uses `actions/setup-go@v4` for Go environment
+-- Runs `go test ./... -v -cover` for unit tests
+-- Docker build and push with CalVer (`YYYY.MM`) and `latest` tags
+-
+-**Docker tags created**:
+-
+-- `sfedbro/app_go:2026.02`
+-- `sfedbro/app_go:latest`
+-
+-### Test Coverage
+-
+-- Coverage reports generated using Go's `-coverprofile`
+-- Uploaded to Codecov for badge display
+-- Coverage threshold enforced (40% worked for me)
+-- Current coverage: 68.11%
+-
+-![Go Coverage](https://img.shields.io/codecov/c/github/sfedbro/devops-core-course/lab03?flag=go)
+-
+-### Benefits of Path-Based Triggers
+-
+-- Reduces unnecessary workflow runs
+-- Optimizes CI pipeline time
+-- Keeps multi-app monorepo CI organized
+-- Allows Python and Go workflows to run in parallel without interfering
+-
+-### Workflow Proof
+-
+-- Both Python and Go workflows run independently in GitHub Actions (see in `screenshots/`)
+-- Only triggers for relevant changes in respective directories
+-- Docker images for Go app successfully built and pushed
+-- Coverage reports uploaded to Codecov
+-
+-### Path Filters — Proof of Selective Triggering
+-
+-- Change in `app_go/` triggered **only** Go CI workflow
+-- Change in `app_python/` triggered **only** Python CI workflow
+-- Change in root files (e.g., `README.md`) did **not** trigger any workflow
+-
+-This demonstrates correct path-based filtering in a monorepo setup.
+diff --git a/app_go/docs/screenshots/lab01-1-build-and-compilation.png b/app_go/docs/screenshots/lab01-1-build-and-compilation.png
+deleted file mode 100644
+index acb9287..0000000
+Binary files a/app_go/docs/screenshots/lab01-1-build-and-compilation.png and /dev/null differ
+diff --git a/app_go/docs/screenshots/lab01-2-both-endpoints-showcase.png b/app_go/docs/screenshots/lab01-2-both-endpoints-showcase.png
+deleted file mode 100644
+index 82f9d7e..0000000
+Binary files a/app_go/docs/screenshots/lab01-2-both-endpoints-showcase.png and /dev/null differ
+diff --git a/app_go/docs/screenshots/lab01-3-setup-example.png b/app_go/docs/screenshots/lab01-3-setup-example.png
+deleted file mode 100644
+index 3be9973..0000000
+Binary files a/app_go/docs/screenshots/lab01-3-setup-example.png and /dev/null differ
+diff --git a/app_go/docs/screenshots/lab03-1-only-go-tests-proof.png b/app_go/docs/screenshots/lab03-1-only-go-tests-proof.png
+deleted file mode 100644
+index 8c44a94..0000000
+Binary files a/app_go/docs/screenshots/lab03-1-only-go-tests-proof.png and /dev/null differ
+diff --git a/app_go/docs/screenshots/lab03-2-only-python-test-proof.png b/app_go/docs/screenshots/lab03-2-only-python-test-proof.png
+deleted file mode 100644
+index ecb866b..0000000
+Binary files a/app_go/docs/screenshots/lab03-2-only-python-test-proof.png and /dev/null differ
+diff --git a/app_go/go.mod b/app_go/go.mod
+deleted file mode 100644
+index 821dff7..0000000
+--- a/app_go/go.mod
++++ /dev/null
+@@ -1,3 +0,0 @@
+-module devops-info-service
+-
+-go 1.25
+diff --git a/app_go/go.sum b/app_go/go.sum
+deleted file mode 100644
+index e69de29..0000000
+diff --git a/app_go/main.go b/app_go/main.go
+deleted file mode 100644
+index cfe447f..0000000
+--- a/app_go/main.go
++++ /dev/null
+@@ -1,151 +0,0 @@
+-package main
+-
+-import (
+-	"encoding/json"
+-	"fmt"
+-	"log"
+-	"net"
+-	"net/http"
+-	"os"
+-	"runtime"
+-	"time"
+-)
+-
+-type Service struct {
+-	Name        string `json:"name"`
+-	Version     string `json:"version"`
+-	Description string `json:"description"`
+-	Framework   string `json:"framework"`
+-}
+-
+-type System struct {
+-	Hostname      string `json:"hostname"`
+-	Platform      string `json:"platform"`
+-	Architecture  string `json:"architecture"`
+-	CPUCount      int    `json:"cpu_count"`
+-	GoVersion     string `json:"go_version"`
+-}
+-
+-type RuntimeInfo struct {
+-	UptimeSeconds int64  `json:"uptime_seconds"`
+-	UptimeHuman   string `json:"uptime_human"`
+-	CurrentTime   string `json:"current_time"`
+-	Timezone      string `json:"timezone"`
+-}
+-
+-type RequestInfo struct {
+-	ClientIP string `json:"client_ip"`
+-	UserAgent string `json:"user_agent"`
+-	Method    string `json:"method"`
+-	Path      string `json:"path"`
+-}
+-
+-type Endpoint struct {
+-	Path        string `json:"path"`
+-	Method      string `json:"method"`
+-	Description string `json:"description"`
+-}
+-
+-type ServiceInfo struct {
+-	Service   Service     `json:"service"`
+-	System    System      `json:"system"`
+-	Runtime   RuntimeInfo `json:"runtime"`
+-	Request   RequestInfo `json:"request"`
+-	Endpoints []Endpoint  `json:"endpoints"`
+-}
+-
+-var startTime = time.Now().UTC()
+-
+-func mainHandler(w http.ResponseWriter, r *http.Request) {
+-	uptimeSeconds := int64(time.Since(startTime).Seconds())
+-	hours := uptimeSeconds / 3600
+-	minutes := (uptimeSeconds % 3600) / 60
+-
+-	hostname, err := os.Hostname()
+-	if err != nil {
+-		log.Printf("Error getting hostname: %v", err)
+-		hostname = "unknown"
+-	}
+-
+-	clientIP, _, err := net.SplitHostPort(r.RemoteAddr)
+-	if err != nil {
+-		log.Printf("Error parsing client IP: %v", err)
+-		clientIP = r.RemoteAddr
+-	}
+-
+-	resp := ServiceInfo{
+-		Service: Service{
+-			Name:        "devops-info-service",
+-			Version:     "1.0.0",
+-			Description: "DevOps course info service",
+-			Framework:   "Go net/http",
+-		},
+-		Runtime: RuntimeInfo{
+-			UptimeSeconds: uptimeSeconds,
+-			UptimeHuman:   formatUptime(hours, minutes),
+-			CurrentTime:   time.Now().UTC().Format(time.RFC3339),
+-			Timezone:      "UTC",
+-		},
+-		System: System{
+-			Hostname:     hostname,
+-			Platform:     runtime.GOOS,
+-			Architecture: runtime.GOARCH,
+-			CPUCount:     runtime.NumCPU(),
+-			GoVersion:    runtime.Version(),
+-		},
+-		Request: RequestInfo{
+-			ClientIP: clientIP,
+-			UserAgent: r.Header.Get("User-Agent"),
+-			Method:    r.Method,
+-			Path:      r.URL.Path,
+-		},
+-		Endpoints: []Endpoint{
+-			{Path: "/", Method: "GET", Description: "Service information"},
+-			{Path: "/health", Method: "GET", Description: "Health check"},
+-		},
+-	}
+-
+-	w.Header().Set("Content-Type", "application/json")
+-	if err := json.NewEncoder(w).Encode(resp); err != nil {
+-		log.Printf("Error encoding JSON response: %v", err)
+-	}
+-}
+-
+-func healthHandler(w http.ResponseWriter, r *http.Request) {
+-	uptimeSeconds := int64(time.Since(startTime).Seconds())
+-
+-	resp := map[string]interface{}{
+-		"status":          "healthy",
+-		"timestamp":       time.Now().UTC().Format(time.RFC3339),
+-		"uptime_seconds":  uptimeSeconds,
+-	}
+-
+-	w.Header().Set("Content-Type", "application/json")
+-	json.NewEncoder(w).Encode(resp)
+-}
+-
+-func formatUptime(hours int64, minutes int64) string {
+-	return fmt.Sprintf("%d hours, %d minutes", hours, minutes)
+-}
+-
+-func main() {
+-	host := os.Getenv("HOST")
+-	if host == "" {
+-		host = "0.0.0.0"
+-	}
+-	
+-	port := os.Getenv("PORT")
+-	if port == "" {
+-		port = "8080"
+-	}
+-
+-	http.HandleFunc("/", mainHandler)
+-	http.HandleFunc("/health", healthHandler)
+-
+-	addr := host + ":" + port
+-	fmt.Printf("Starting server on %s\n", addr)
+-	err := http.ListenAndServe(addr, nil)
+-	if err != nil {
+-		fmt.Printf("Server failed: %s\n", err)
+-	}
+-}
+diff --git a/app_go/main_test.go b/app_go/main_test.go
+deleted file mode 100644
+index 9c2805d..0000000
+--- a/app_go/main_test.go
++++ /dev/null
+@@ -1,30 +0,0 @@
+-package main
+-
+-import (
+-	"net/http/httptest"
+-	"testing"
+-)
+-
+-func TestMainHandler(t *testing.T) {
+-	req := httptest.NewRequest("GET", "/", nil)
+-	w := httptest.NewRecorder()
+-
+-	mainHandler(w, req)
+-
+-	resp := w.Result()
+-	if resp.StatusCode != 200 {
+-		t.Fatalf("Expected status 200, got %d", resp.StatusCode)
+-	}
+-}
+-
+-func TestHealthHandler(t *testing.T) {
+-	req := httptest.NewRequest("GET", "/health", nil)
+-	w := httptest.NewRecorder()
+-
+-	healthHandler(w, req)
+-
+-	resp := w.Result()
+-	if resp.StatusCode != 200 {
+-		t.Fatalf("Expected status 200, got %d", resp.StatusCode)
+-	}
+-}
+\ No newline at end of file
+diff --git a/app_python/.dockerignore b/app_python/.dockerignore
+deleted file mode 100644
+index 44fa253..0000000
+--- a/app_python/.dockerignore
++++ /dev/null
+@@ -1,22 +0,0 @@
+-# 🐙 Version control
+-.git
+-.gitignore
+-
+-# 🐍 Python
+-__pycache__
+-*.pyc
+-*.pyo
+-venv/
+-.venv/
+-
+-# 🔐 Secrets (NEVER include!)
+-.env
+-*.pem
+-secrets/
+-
+-# 📝 Documentation
+-*.md
+-docs/
+-
+-# 🧪 Tests (if not needed in container)
+-tests/
+\ No newline at end of file
+diff --git a/app_python/.gitignore b/app_python/.gitignore
+deleted file mode 100644
+index 849ad01..0000000
+--- a/app_python/.gitignore
++++ /dev/null
+@@ -1,7 +0,0 @@
+-__pycache__/
+-*.py[cod]
+-venv/
+-*.log
+-.vscode/
+-.idea/
+-.DS_Store
+diff --git a/app_python/Dockerfile b/app_python/Dockerfile
+deleted file mode 100644
+index 4663a0d..0000000
+--- a/app_python/Dockerfile
++++ /dev/null
+@@ -1,22 +0,0 @@
+-FROM python:3.12-slim
+-WORKDIR /app_python
+-COPY requirements.txt .
+-
+-# Installs newest packet versions(or reloads indices) without additional recomendations, 
+-# clears cache from installation, 
+-# creates non-root user, 
+-# and installs python requirements
+-RUN apt-get update && apt-get install -y --no-install-recommends \
+-    && rm -rf /var/lib/apt/lists/* \
+-    && useradd --create-home --shell /bin/bash appuser \
+-    && pip install --no-cache-dir -r requirements.txt
+-
+-    COPY app.py .
+-#COPY templates/ templates/
+-# There are no /templates now...
+-
+-EXPOSE 5000
+-
+-USER appuser
+-
+-CMD ["python", "app.py"]
+\ No newline at end of file
+diff --git a/app_python/README.md b/app_python/README.md
+deleted file mode 100644
+index 03e0599..0000000
+--- a/app_python/README.md
++++ /dev/null
+@@ -1,106 +0,0 @@
+-# devops-info-service (Python)
+-
+-[![Python CI + Docker Build](https://github.com/SfedBro/DevOps-Core-Course/actions/workflows/python-ci.yml/badge.svg?branch=lab03)](https://github.com/SfedBro/DevOps-Core-Course/actions/workflows/python-ci.yml)
+-
+-## Overview
+-
+-This is the Python implementation of the DevOps Info Service.  
+-It provides endpoints to get detailed information about the service, system, runtime, and health status.
+-
+-## Prerequisites
+-
+-- Python 3.11 or higher
+-- Dependencies listed in `requirements.txt`
+-
+-## Installation
+-
+-```bash
+-python -m venv venv
+-
+-# Windows PowerShell
+-.\venv\Scripts\Activate.ps1
+-
+-# Unix or Git Bash
+-source venv/bin/activate
+-
+-pip install -r requirements.txt
+-```
+-
+-## Run
+-
+-```
+-# Run with default host and port (0.0.0.0:5000)
+-python app.py
+-
+-# Or specify host and port via environment variables
+-# Windows PowerShell
+-$env:HOST=127.0.0.1
+-$env:PORT=8080
+-python app.py
+-
+-# Unix / Bash
+-HOST=127.0.0.1 PORT=8080 python app.py
+-```
+-
+-## API Endpoints
+-
+-- `GET /` - Service and system information
+-- `GET /health` - Health check
+-
+-## Troubleshooting
+-
+-If the server does not start or you get errors about execution policy on Windows PowerShell, try:
+-
+-```
+-Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+-```
+-
+-If the port is busy, find and kill the process:
+-
+-```
+-netstat -ano | findstr :5000
+-taskkill /PID <pid> /F
+-```
+-
+-## Docker
+-
+-This application is containerized using Docker for easy deployment and consistency across environments.
+-
+-### Build Docker Image Locally
+-
+-```
+-docker build -t sfedbro/app_python:lab02 .
+-```
+-
+-### Run Container Locally
+-
+-```
+-docker run -p 5000:5000 sfedbro/app_python:lab02
+-```
+-
+-Access the app at http://localhost:5000 .
+-
+-### Pull and Run from Docker Hub
+-
+-```
+-docker pull sfedbro/app_python:lab02
+-docker run -p 5000:5000 sfedbro/app_python:lab02
+-```
+-
+-## Testing
+-
+-This project uses pytest for unit testing.
+-
+-To run tests locally:
+-
+-```bash
+-pytest -v
+-```
+-
+-## Licence
+-
+-MIT Licence
+-
+-```
+-
+-```
+diff --git a/app_python/app.py b/app_python/app.py
+deleted file mode 100644
+index 8cc8478..0000000
+--- a/app_python/app.py
++++ /dev/null
+@@ -1,98 +0,0 @@
+-import os
+-import socket
+-import platform
+-import logging
+-from datetime import datetime, timezone
+-
+-from fastapi import FastAPI, Request
+-
+-logging.basicConfig(level=logging.INFO)
+-logger = logging.getLogger(__name__)
+-
+-# ======== Parameters ========
+-HOST = os.getenv("HOST", "0.0.0.0")
+-PORT = int(os.getenv("PORT", 5000))
+-DEBUG = os.getenv("DEBUG", "false").lower() == "true"
+-
+-# ======== Setup ========
+-START_TIME = datetime.now(timezone.utc)     # UTC for simplicity
+-
+-app = FastAPI()
+-
+-
+-# ======== Endpoints ========
+-@app.get("/")
+-def main_endpoint(request: Request):
+-    return {
+-        "service": {
+-            "name": "devops-info-service",
+-            "version": "1.0.0",
+-            "description": "DevOps course info service",
+-            "framework": "FastAPI",
+-        },
+-        "system": get_system_info(),
+-        "runtime": {
+-            "uptime_seconds": get_uptime()["seconds"],
+-            "uptime_human": get_uptime()["human"],
+-            "current_time": get_current_time(),
+-            "timezone": "UTC",      # Static for simplicity
+-        },
+-        "request": {
+-            "client_ip": request.client.host,
+-            "user_agent": request.headers.get("user-agent"),
+-            "method": request.method,
+-            "path": request.url.path,
+-        },
+-        "endpoints": [
+-            {"path": "/", "method": "GET",
+-             "description": "Service information"},
+-            {"path": "/health", "method": "GET",
+-             "description": "Health check"},
+-        ],
+-    }
+-
+-
+-@app.get("/health")
+-def health():
+-    return {
+-        "status": "healthy",
+-        "timestamp": datetime.now(timezone.utc).isoformat(),
+-        "uptime_seconds": get_uptime()["seconds"],
+-    }
+-
+-
+-# ======== Functions ========
+-def get_system_info():
+-    hostname = socket.gethostname()
+-    platform_name = platform.system()
+-    architecture = platform.machine()
+-    cpu_count = os.cpu_count()
+-    python_version = platform.python_version()
+-    return {
+-        "hostname": hostname,
+-        "platform": platform_name,
+-        "architecture": architecture,
+-        "cpu_count": cpu_count,
+-        "python_version": python_version
+-    }
+-
+-
+-def get_uptime():
+-    delta = datetime.now(timezone.utc) - START_TIME
+-    seconds = int(delta.total_seconds())
+-    hours = seconds // 3600
+-    minutes = (seconds % 3600) // 60
+-    return {
+-        'seconds': seconds,
+-        'human': f"{hours} hours, {minutes} minutes"
+-    }
+-
+-
+-def get_current_time():
+-    return datetime.now(timezone.utc).isoformat()
+-
+-
+-# ======== Launch ========
+-if __name__ == "__main__":
+-    import uvicorn
+-    uvicorn.run("app:app", host=HOST, port=PORT, reload=DEBUG)
+diff --git a/app_python/docs/LAB01.md b/app_python/docs/LAB01.md
+deleted file mode 100644
+index 026e290..0000000
+--- a/app_python/docs/LAB01.md
++++ /dev/null
+@@ -1,245 +0,0 @@
+-# Lab 1 - DevOps Info Service: Web Application Initialisation
+-
+-## Overview
+-
+-This service provides detailed information about itself and its runtime environment. It exposes endpoints to retrieve system info, runtime status, and health check, forming a foundation for further DevOps tooling.
+-**Prerequisites**
+-Python 3.11+
+-Dependencies listed in `requirements.txt` (FastAPI, Uvicorn)
+-
+-## Installation
+-
+-```bash
+-python -m venv venv
+-
+-# For Windows PowerShell
+-.\venv\Scripts\Activate.ps1
+-# For Unix or Git Bash
+-source venv/bin/activate
+-
+-pip install -r requirements.txt
+-```
+-
+-**Running the Application**
+-
+-```bash
+-# Classic launch 0.0.0.0:5000
+-python app.py
+-
+-# Or with custom config
+-# Windows PowerShell:
+-$env:HOST=127.0.0.1
+-$env:PORT=8080
+-python app.py
+-
+-# Unix / Bash:
+-HOST=127.0.0.1 PORT=8080 python app.py
+-```
+-
+-**Example**
+-
+-After server launches go to http://localhost:5000, http://localhost:PORT, or http://HOST:PORT
+-For example above: http://127.0.0.1:8080
+-For information add `/health` or `/docs` (http://localhost:5000/docs)
+-
+-**Troubleshooting**
+-
+-For windows Powershell
+-If you do not see logs like:
+-
+-```pgsql
+-INFO:     Uvicorn running on http://0.0.0.0:5000
+-```
+-
+-try activating your virtual environment manually:
+-
+-```powershell
+-.\venv\Scripts\Activate.ps1
+-```
+-
+-If you get an execution policy error, check current policy:
+-
+-```powershell
+-Get-ExecutionPolicy -Scope Process
+-```
+-
+-If result is `Restricted`, allow bypass temporarily:
+-
+-```powershell
+-Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+-Y
+-```
+-
+-Try running the server again.
+-If the server still won't start, check if the port is already in use:
+-
+-```powershell
+-# replace 5000 with your PORT
+-netstat -ano | findstr :5000
+-```
+-
+-If you see something like:
+-
+-```nginx
+-  TCP    0.0.0.0:5000           0.0.0.0:0              LISTENING       1234
+-```
+-
+-Stop the occupying process with:
+-
+-```powershell
+-taskkill /PID 1234 /F
+-```
+-
+-If issues persist, search online with your error details.
+-
+-**API Endpoints**
+-
+-- `GET /` - Service and system information
+-- `GET /health` - Health check
+-
+-  **Configuration** - Environment variables table
+-  | Environment Variable | Description | Default |
+-  | -------------------- | --------------------------- | ------- |
+-  | HOST | Server host address | 0.0.0.0 |
+-  | PORT | Server port | 5000 |
+-  | DEBUG | Debug mode (`true`/`false`) | false |
+-
+-1.  **Framework Selection**
+-    - Your choice and why
+-      FastAPI, since it automates API documentation generation which saves time and improves maintainability. It supports asynchronous code, is fast, and widely adopted in modern Python web development.
+-    - Comparison table with alternatives
+-      | Framework | Description | Pros | Cons |
+-      | --------- | ------------------------- | --------------------------- | ------------------------------- |
+-      | Flask | Lightweight web framework | Simple, easy to learn | Manual doc setup |
+-      | FastAPI | Modern async framework | Auto docs, high performance | Slightly steeper learning curve |
+-      | Django | Full-featured framework | Built-in ORM and admin | Heavy for simple APIs |
+-
+-2.  **Best Practices Applied**
+-    - List practices with code examples
+-    - Explain importance of each
+-
+-      **Clean Code Organization**
+-      - Clear function names and logical grouping
+-      - Minimal and meaningful comments
+-
+-      **PEP 8 Compliance**
+-      - Follows Python styling for readability and maintainability
+-
+-      **Error Handling**
+-      - Custom handlers for 404 and 500 errors to provide meaningful responses
+-
+-      **Logging**
+-      - Logging configured to track server start and request info, aiding debugging
+-
+-      **Configuration via Environment Variables**
+-      - Enables flexible deployment without code changes
+-
+-3.  **API Documentation**
+-    - Request/response examples
+-    - Testing commands
+-
+-      ```bash
+-        curl -X 'GET' \
+-        'http://localhost:5000/' \
+-        -H 'accept: application/json'
+-      ```
+-
+-      ```json
+-      {
+-         "service": {
+-            "name": "devops-info-service",
+-            "version": "1.0.0",
+-            "description": "DevOps course info service",
+-            "framework": "FastAPI"
+-         },
+-         "system": {
+-            "hostname": "SfedBroPC",
+-            "platform": "Windows",
+-            "architecture": "AMD64",
+-            "cpu_count": 16,
+-            "python_version": "3.12.7"
+-         },
+-         ...(truncated?)
+-      }
+-      ```
+-
+-      **Response headers**
+-      content-length: 710
+-      content-type: application/json
+-      date: Sun,25 Jan 2026 20:19:03 GMT
+-      server: uvicorn
+-
+-      **Responses**
+-      200
+-      Successful Response
+-
+-4.  **Testing Evidence**
+-    - Screenshots showing endpoints work
+-    - Terminal output
+-
+-PS C:\Users\Admin\Desktop\DevOps-Core-Course\app_python> Invoke-RestMethod http://localhost:5000/
+-
+-service : @{name=devops-info-service; version=1.0.0; description=DevOps course info service; framework=FastAPI}
+-system : @{hostname=SfedBroPC; platform=Windows; architecture=AMD64; cpu_count=16; python_version=3.12.7}
+-runtime : @{uptime_seconds=142; uptime_human=0 hours, 2 minutes; current_time=2026-01-25T20:16:36.142484+00:00; timezone=UTC}
+-request : @{client_ip=127.0.0.1; user_agent=Mozilla/5.0 (Windows NT; Windows NT 10.0; ru-RU) WindowsPowerShell/5.1.19041.6456; method=GET; path=/}
+-endpoints : {@{path=/; method=GET; description=Service information}, @{path=/health; method=GET; description=Health check}}
+-
+-5.  **Challenges & Solutions**
+-    - Problems encountered
+-      Did not know API
+-      Could not launch the application
+-      Small documentation experience
+-    - How you solved them
+-      Searched the web
+-      Looked in AI and web for advices
+-      Spent few hours writing and editing
+-
+-6.  <details>
+-    <summary>💡 GitHub Social Features</summary>
+-
+-    **Why Stars Matter:**
+-
+-    **Discovery & Bookmarking:**
+-    - Stars help you bookmark interesting projects for later reference
+-    - Star count indicates project popularity and community trust
+-    - Starred repos appear in your GitHub profile, showing your interests
+-
+-    **Open Source Signal:**
+-    - Stars encourage maintainers (shows appreciation)
+-    - High star count attracts more contributors
+-    - Helps projects gain visibility in GitHub search and recommendations
+-
+-    **Professional Context:**
+-    - Shows you follow best practices and quality projects
+-    - Indicates awareness of industry tools and trends
+-
+-    **Why Following Matters:**
+-
+-    **Networking:**
+-    - See what other developers are working on
+-    - Discover new projects through their activity
+-    - Build professional connections beyond the classroom
+-
+-    **Learning:**
+-    - Learn from others' code and commits
+-    - See how experienced developers solve problems
+-    - Get inspiration for your own projects
+-
+-    **Collaboration:**
+-    - Stay updated on classmates' work
+-    - Easier to find team members for future projects
+-    - Build a supportive learning community
+-
+-    **Career Growth:**
+-    - Follow thought leaders in your technology stack
+-    - See trending projects in real-time
+-    - Build visibility in the developer community
+-
+-    **GitHub Best Practices:**
+-    - Star repos you find useful (not spam)
+-    - Follow developers whose work interests you
+-    - Engage meaningfully with the community
+-    - Your GitHub activity shows employers your interests and involvement
+-
+-    </details>
+diff --git a/app_python/docs/LAB02.md b/app_python/docs/LAB02.md
+deleted file mode 100644
+index 0b42064..0000000
+--- a/app_python/docs/LAB02.md
++++ /dev/null
+@@ -1,145 +0,0 @@
+-# LAB02 — Docker Containerization
+-
+-## Docker Best Practices Applied
+-
+-### Non-root user
+-
+-Создан пользователь `appuser` и использован с помощью директивы `USER appuser`. Это повышает безопасность контейнера, так как приложение работает не от root и снижает риски при взломе.
+-
+-```dockerfile
+-RUN useradd --create-home --shell /bin/bash appuser
+-USER appuser
+-```
+-
+-### Layer caching
+-
+-Отдельно копируются `requirements.txt` и устанавливаются зависимости, а затем копируется остальной код. Это ускоряет сборку при изменении только кода, без повторной установки пакетов.
+-
+-```
+-COPY requirements.txt .
+-
+-RUN apt-get update && apt-get install -y --no-install-recommends \
+-    && rm -rf /var/lib/apt/lists/* \
+-    && useradd --create-home --shell /bin/bash appuser \
+-    && pip install --no-cache-dir -r requirements.txt
+-
+-COPY app.py .
+-```
+-
+-### .dockerignore
+-
+-В файле `.dockerignore` исключены временные файлы, кэш и ненужные папки, чтобы не передавать их в контекст сборки. Это снижает размер образа и ускоряет сборку.
+-
+-### Specific base image version
+-
+-Использован `python:3.12-slim` — оптимальный баланс между размером и функционалом.
+-
+-### Proper layer ordering
+-
+-Сначала копируются зависимости, затем основной код, что позволяет использовать кеш слоев эффективно и повышает скорость сборки и уменьшает итоговый размер контейнера.
+-
+-## Image Information & Decisions
+-
+-### Base image: `python:3.12-slim`
+-
+-Выбран из-за баланса между легковесностью и совместимостью. Slim-версия меньше стандартного образа, но содержит нужные библиотеки.
+-
+-### Final image size
+-
+-Размер в ~160 Мб оптимален для Python-приложения с зависимостями.
+-
+-### Layer structure:
+-
+-1. Установка зависимостей
+-2. Копирование кода
+-3. Создание пользователя
+-4. Переключение на непользовательского пользователя
+-5. Запуск приложения
+-
+-### Optimization choices:
+-
+-- Использование --no-cache-dir при установке pip-зависимостей
+-- Отдельное копирование requirements.txt для кэширования
+-- Использование slim-базы
+-
+-#### Reasons:
+-
+-- Для работы python
+-- Для ускорения постройки контейнера
+-- Легкая настройки и оптимальный вес
+-
+-## Build & Run Process
+-
+-###Сборка образа
+-
+-```
+-docker build -t app_python:lab02 .
+-```
+-
+-```
+-... [вывод сборки] ...
+-[+] Building 27.1s (11/11) FINISHED                                                                                                            docker:desktop-linux
+-```
+-
+-### Запуск контейнера
+-
+-```
+-docker run -p 5000:5000 app_python:lab02
+-```
+-
+-(Вывод)
+-
+-```
+-INFO:     Started server process [1]
+-INFO:     Waiting for application startup.
+-INFO:     Application startup complete.
+-INFO:     Uvicorn running on http://0.0.0.0:5000 (Press CTRL+C to quit)
+-INFO:     172.17.0.1:44156 - "GET / HTTP/1.1" 200 OK
+-```
+-
+-### Тестирование эндпоинтов
+-
+-```
+-curl http://localhost:5000
+-```
+-
+-(Вывод)
+-
+-```
+-{"service":{"name":"devops-info-service","version":"1.0.0","description":"DevOps course info service","framework":"FastAPI"},"system":{"hostname":"30d261be1b68","platform":"Linux","architecture":"x86_64","cpu_count":16,"python_version":"3.12.12"},"runtime":{"uptime_seconds":10,"uptime_human":"0 hours, 0 minutes","current_time":"2026-02-04T19:50:44.709090+00:00","timezone":"UTC"},"request":{"client_ip":"172.17.0.1","user_agent":"curl/8.13.0","method":"GET","path":"/"},"endpoints":[{"path":"/","method":"GET","description":"Service information"},{"path":"/health","method":"GET","description":"Health check"}]}
+-```
+-
+-`/health` тоже работает
+-
+-### Technical Analysis
+-
+-##### Всё это есть в лекции и/или очевидно, я не могу передать прочитанность лекции как-либо адекватно.
+-
+-Dockerfile работает благодаря правильной структуре слоев и безопасности, включая запуск от некорневого пользователя.
+-
+-Если поменять порядок слоев (например, сначала копировать весь код, а потом зависимости), кеширование будет менее эффективным, и сборка займет больше времени.
+-
+-Реализована базовая безопасность через смену пользователя на не-root-пользователя, что снижает риски взлома.
+-
+-`.dockerignore` уменьшает размер контекста и ускоряет сборку, исключая ненужные файлы.
+-
+-### Challenges & Solutions
+-
+-Проблема: Ошибки с запуском команд Docker из-за отсутствия Docker Desktop и неправильных настроек WSL.
+-Решение: Установил WSL, активировал интеграцию с Docker Desktop, перезапустил сервис.
+-
+-При работе с тегами Docker иногда сталкивался с конфликтами, решил через удаление старых образов и контейнеров.
+-
+-Был напрасно обеспокоен безопасностью использования имени docker hub'а в тэге. Решил, повторив всё несколько раз.
+-
+-Настройка не-root-пользователя помогла понять важность безопасности в контейнерах, но я думал, что может потребоваться что-то ещё, но это вне рамок этой лабораторной.
+-Решил перечитывание критериев и лекции.
+-
+-Научился правильно(надеюсь) структурировать Dockerfile для ускорения сборки и уменьшения размера образа.
+-Корректность решения будет известно после получения оценки.
+-
+-Результат: Узнал, как создавать безопасные, оптимизированные образы, работать с Docker Hub и понимать внутренние механизмы сборки(надеюсь).
+-
+-### Docker Hub URL
+-
+-https://hub.docker.com/r/sfedbro/app_python
+diff --git a/app_python/docs/LAB03.md b/app_python/docs/LAB03.md
+deleted file mode 100644
+index be96115..0000000
+--- a/app_python/docs/LAB03.md
++++ /dev/null
+@@ -1,272 +0,0 @@
+-# Lab 3 — Continuous Integration (CI/CD)
+-
+-## Task 1 — Unit Testing
+-
+-### Testing Framework Choice
+-
+-For this project, pytest was selected as the testing framework.
+-
+-### Justification:
+-
+-- Simple and clean syntax compared to built-in unittest
+-- Excellent integration with FastAPI using TestClient
+-- Powerful assertion system
+-- Large ecosystem and community support
+-- Industry-standard choice for modern Python projects
+-
+-pytest and required test dependencies were installed in the virtual environment and can be added to dependencies.
+-
+-### Test Structure
+-
+-A dedicated `tests/` directory was created(during lab 1, actually):
+-
+-```
+-app_python/
+-    app.py
+-    tests/
+-```
+-
+-It follows standard Python project conventions and allows pytest to discover tests automatically.
+-
+-### Implemented Unit Tests
+-
+-Unit tests were written using FastAPI’s `TestClient` to test the application without starting a real HTTP server.
+-
+-### Tested Endpoints
+-
+-#### `GET /`
+-
+-The main service information endpoint is tested for:
+-
+-- HTTP 200 status code
+-- Presence of required top-level JSON fields:
+-  - service
+-  - system
+-  - runtime
+-  - request
+-  - endpoints
+-- Correct service metadata:
+-  - service.name
+-  - service.framework
+-
+-This ensures that the API contract is respected and the response structure remains stable.
+-
+-#### `GET /health`
+-
+-The health check endpoint is tested for:
+-
+-- HTTP 200 status code
+-- Correct health payload structure:
+-  - status == "healthy"
+-  - presence of timestamp field
+-  - presence of uptime_seconds field
+-- Correct data types of uptime fields
+-
+-This validates that monitoring and health checks can reliably consume this endpoint.
+-
+-#### Error and Edge Case Considerations
+-
+-While the main focus is on successful responses, the test suite validates:
+-
+-- Correct HTTP status codes
+-- Required JSON fields exist
+-- Data types are correct for key fields
+-
+-The tests are designed to catch:
+-
+-- Breaking changes in response structure
+-- Missing fields
+-- Incorrect service metadata
+-
+-This provides meaningful tests.
+-
+-#### How the Application Is Tested Without Running a Server
+-
+-FastAPI’s `TestClient` is used to simulate HTTP requests directly against the application object:
+-
+-```
+-client = TestClient(app)
+-```
+-
+-It is used for fast isolated unit tests without binding to network ports or running Uvicorn.
+-
+-#### Stable Testing
+-
+-To avoid fragile tests, the following are not asserted with exact values:
+-
+-- Hostname
+-- Client IP address
+-- Timestamp values
+-- Platform-specific system information
+-
+-Instead, tests verify existence and structure for better practice with system and environment-dependent data.
+-
+-### How to Run Tests Locally
+-
+-From the app_python directory with virtual environment activated:
+-
+-```
+-pytest -v
+-```
+-
+-#### Example Terminal Output
+-
+-All tests success:
+-
+-```
+-collected 8 items
+-
+-tests/test_app.py::test_root_endpoint_status_code PASSED                                                         [ 12%]
+-tests/test_app.py::test_root_endpoint_structure PASSED                                                           [ 25%]
+-tests/test_app.py::test_service_info PASSED                                                                      [ 37%]
+-tests/test_app.py::test_health_endpoint_status_code PASSED                                                       [ 50%]
+-tests/test_app.py::test_health_endpoint_payload PASSED                                                           [ 62%]
+-tests/test_app.py::test_runtime_fields PASSED                                                                    [ 75%]
+-tests/test_app.py::test_system_info_fields PASSED                                                                [ 87%]
+-tests/test_app.py::test_not_found_endpoint PASSED                                                                [100%]
+-```
+-
+-## Task 2 — GitHub Actions CI Workflow
+-
+-This project uses GitHub Actions for CI.
+-
+-Workflow stages:
+-
+-- Linting with flake8
+-- Unit tests with pytest
+-- Docker image build and push to Docker Hub
+-
+-### Workflow Trigger Strategy
+-
+-Triggers: The workflow runs on `push` and `pull_request` events targeting all branches.
+-
+-Reasoning: This ensures that all new changes are tested and Docker images are built before merging into the main branch. Running on PRs also prevents errors from reaching the master branch.
+-
+-```
+-on:
+-    push:
+-    pull_request:
+-```
+-
+-### Actions
+-
+-actions/checkout@v4 — Checks out the repository so the workflow can access the code.\
+-actions/setup-python@v5 — Sets up the required Python version.\
+-docker/login-action@v3 — Authenticates with Docker Hub using GitHub secrets.\
+-docker/build-push-action@v6 — Builds and pushes Docker images with proper tags.
+-
+-Reasoning: These are official, stable, widely used actions that cover testing, linting, and Docker image building without custom scripts. And I use them for other concurrent subject.
+-
+-### Docker Tagging Strategy
+-
+-Versioning: Calendar Versioning (CalVer) — `2026.02`.
+-
+-Tags Created:
+-
+-- sfedbro/app_python:2026.02 — fixed release version by date
+-- sfedbro/app_python:latest — always up-to-date version
+-
+-Reasoning: CalVer is convenient for continuous deployment and easy to track by date. The latest tag simplifies testing and local runs.
+-
+-```
+-      - name: Build and push Docker image
+-        uses: docker/build-push-action@v5
+-        with:
+-          context: app_python
+-          push: true
+-          tags: |
+-            ${{ env.IMAGE_NAME }}:${{ steps.version.outputs.VERSION }}
+-            ${{ env.IMAGE_NAME }}:latest
+-```
+-
+-### Successful Workflow Run
+-
+-GitHub Actions Link: `https://github.com/SfedBro/DevOps-Core-Course/actions/runs/21918200330/job/63291028815#logs`
+-
+-(is it example or overview?)\
+-Output Example:
+-
+-<b>test_and_build</b>\
+-✔ Set up job\
+-✔ Checkout repository\
+-✔ Set up Python\
+-✔ Install dependencies\
+-✔ Run flake8\
+-✔ Run pytest\
+-✔ Login to Docker Hub\
+-✔ Set version (CalVer)\
+-✔ Build and push Docker image\
+-✔ Post Login to Docker Hub\
+-✔ Post Set up Python\
+-✔ Post Checkout repository\
+-✔ Complete job\
+-
+-## Task 3 — CI Best Practices & Security
+-
+-### Status Badge
+-
+-The workflow has a GitHub Actions status badge showing the current build status. It is visible at the top of the `app_python/README.md` file.
+-Example Markdown for badge:
+-
+-[![Python CI + Docker Build](https://github.com/SfedBro/DevOps-Core-Course/actions/workflows/python-ci.yml/badge.svg?branch=lab03)](https://github.com/SfedBro/DevOps-Core-Course/actions/workflows/python-ci.yml)
+-
+-### Dependency Caching
+-
+-I implemented caching for Python dependencies with `actions/cache` to store pip cache between runs and significantly reduce workflow execution time.
+-
+-Cache key: `${{ runner.os }}-pip-${{ hashFiles('**/requirements*.txt') }}`\
+-Cached path: `~/.cache/pip`
+-
+-<b>Measured speed improvement:</b>
+-
+-Without cache: ~20 seconds\
+-With cache: ~10 seconds (0-1 for caching + 7-14 for installing)
+-
+-Overall from 25% to 50% time decrease, which shows efficiency of such approach.
+-
+-### Security Scanning with Snyk
+-
+-Integrated Snyk using `snyk/actions/python@v1`
+-
+-Snyk checks for known vulnerabilities in project dependencies.
+-
+-Environment variable `SNYK_TOKEN` is set via GitHub Secrets.
+-
+-In total it found 26 low vulnerabilities with no known exploits, and based on not-newest libraries versions(and especially 3.12-slim model for docker), so I did nothing with those(I will consider chanding docker image after finishing this lab).
+-
+-Result on GitHub:
+-
+-```
+-✔ Tested /github/workspace for known issues, no vulnerable paths found.
+-```
+-
+-### CI Best Practices Applied
+-
+-1. Dependency Caching — reduces build times and load on external package repositories.
+-
+-2. Fail-fast principle — linting, tests, and Snyk scans run before Docker build to avoid building images if code fails quality/security checks.
+-
+-3. Path filtering — workflow triggers only on changes in app_python/ or workflow file, reducing unnecessary runs.
+-
+-4. Environment secrets — sensitive information such as Docker Hub credentials and Snyk token are stored in GitHub Secrets.
+-
+-5. Versioning strategy for Docker images — CalVer tags (YYYY.MM) plus latest tag for reproducibility and continuous deployment.
+-
+-### Terminal Output / Proof
+-
+-Workflow runs successfully in GitHub Actions - see it yourself
+-
+-Docker images are built and pushed with tags:
+-
+-```
+-sfedbro/app_python:latest
+-sfedbro/app_python:2026.02
+-```
+-
+-look in screenshots for lab03~ one\
+-or follow the link: `https://hub.docker.com/repository/docker/sfedbro/app_python/tags/latest/sha256-51af8e10b982eaae63b48c45f6f138cd663f4e8d559fd8158a20e7e0daed94b6` for exact version\
+-or: `https://hub.docker.com/repository/docker/sfedbro/app_python/general` for python_app in general.
+-
+-Cached dependencies significantly reduce pipeline time - look in workflows.
+-
+-Snyk scan completed without vulnerabilities - look in latest forkflow.
+diff --git a/app_python/docs/screenshots/lab01-1-main-endpoint.png b/app_python/docs/screenshots/lab01-1-main-endpoint.png
+deleted file mode 100644
+index 8d4de71..0000000
+Binary files a/app_python/docs/screenshots/lab01-1-main-endpoint.png and /dev/null differ
+diff --git a/app_python/docs/screenshots/lab01-2-health-check.png b/app_python/docs/screenshots/lab01-2-health-check.png
+deleted file mode 100644
+index 0484097..0000000
+Binary files a/app_python/docs/screenshots/lab01-2-health-check.png and /dev/null differ
+diff --git a/app_python/docs/screenshots/lab01-3-formatted-output.png b/app_python/docs/screenshots/lab01-3-formatted-output.png
+deleted file mode 100644
+index 0f706d4..0000000
+Binary files a/app_python/docs/screenshots/lab01-3-formatted-output.png and /dev/null differ
+diff --git a/app_python/docs/screenshots/lab03-1-tags-latest-and-CalVer.png b/app_python/docs/screenshots/lab03-1-tags-latest-and-CalVer.png
+deleted file mode 100644
+index e6a7efd..0000000
+Binary files a/app_python/docs/screenshots/lab03-1-tags-latest-and-CalVer.png and /dev/null differ
+diff --git a/app_python/requirements.txt b/app_python/requirements.txt
+deleted file mode 100644
+index 64de418..0000000
+--- a/app_python/requirements.txt
++++ /dev/null
+@@ -1,4 +0,0 @@
+-fastapi==0.115.0
+-uvicorn[standard]==0.32.0
+-pytest
+-httpx
+diff --git a/app_python/tests/__init__.py b/app_python/tests/__init__.py
+deleted file mode 100644
+index e69de29..0000000
+diff --git a/app_python/tests/test_app.py b/app_python/tests/test_app.py
+deleted file mode 100644
+index ce2c4d2..0000000
+--- a/app_python/tests/test_app.py
++++ /dev/null
+@@ -1,69 +0,0 @@
+-from fastapi.testclient import TestClient
+-from app import app
+-
+-client = TestClient(app)
+-
+-
+-def test_root_endpoint_status_code():
+-    response = client.get("/")
+-    assert response.status_code == 200
+-
+-
+-def test_root_endpoint_structure():
+-    response = client.get("/")
+-    data = response.json()
+-
+-    assert "service" in data
+-    assert "system" in data
+-    assert "runtime" in data
+-    assert "request" in data
+-    assert "endpoints" in data
+-
+-
+-def test_service_info():
+-    response = client.get("/")
+-    service = response.json()["service"]
+-
+-    assert service["name"] == "devops-info-service"
+-    assert service["framework"] == "FastAPI"
+-
+-
+-def test_health_endpoint_status_code():
+-    response = client.get("/health")
+-    assert response.status_code == 200
+-
+-
+-def test_health_endpoint_payload():
+-    response = client.get("/health")
+-    data = response.json()
+-
+-    assert data["status"] == "healthy"
+-    assert "timestamp" in data
+-    assert "uptime_seconds" in data
+-    assert isinstance(data["uptime_seconds"], int)
+-
+-
+-def test_runtime_fields():
+-    data = client.get("/").json()["runtime"]
+-
+-    assert isinstance(data["uptime_seconds"], int)
+-    assert isinstance(data["uptime_human"], str)
+-    assert isinstance(data["current_time"], str)
+-    assert data["timezone"] == "UTC"
+-
+-
+-def test_system_info_fields():
+-    system = client.get("/").json()["system"]
+-
+-    assert "hostname" in system
+-    assert "platform" in system
+-    assert "architecture" in system
+-    assert "cpu_count" in system
+-    assert "python_version" in system
+-
+-    assert isinstance(system["cpu_count"], int)
+-
+-
+-def test_not_found_endpoint():
+-    response = client.get("/does-not-exist")
+-    assert response.status_code == 404
