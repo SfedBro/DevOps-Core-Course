@@ -15,6 +15,11 @@ variable "subnet_id" {
   type = string
 }
 
-variable "sa_key_path" {
+variable "yc_key_file" {
+  description = "Path to Yandex.Cloud service account key"
+  type        = string
+}
+
+variable "ssh_key" {
   type = string
 }

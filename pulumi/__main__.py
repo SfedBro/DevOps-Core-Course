@@ -1,5 +1,10 @@
 import pulumi
 import pulumi_yandex as yc
+import os
+
+yc_key_path = os.getenv("YC_KEY_JSON")
+if yc_key_path:
+    os.environ["YC_SERVICE_ACCOUNT_KEY_FILE"] = yc_key_path
 
 config = pulumi.Config("yandex")
 

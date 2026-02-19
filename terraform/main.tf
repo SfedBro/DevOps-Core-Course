@@ -8,7 +8,7 @@ terraform {
 }
 
 provider "yandex" {
-  service_account_key_file = var.sa_key_path
+  service_account_key_file = var.yc_key_file
   cloud_id                 = var.cloud_id
   folder_id                = var.folder_id
   zone                     = var.zone
@@ -36,7 +36,7 @@ resource "yandex_compute_instance" "vm-1" {
   }
 
   metadata = {
-    ssh-keys = "ubuntu:${file("C:/Users/Admin/.ssh/id_ed25519.pub")}"
+    ssh-keys = "ubuntu:${file(var.ssh_key)}"
   }
 }
 
