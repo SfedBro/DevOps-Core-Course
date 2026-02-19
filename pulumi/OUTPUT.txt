@@ -1,0 +1,72 @@
+(venv) C:\Users\Admin\Desktop\DevOps-Core-Course\pulumi>pulumi up
+Previewing update (dev)
+
+View in Browser (Ctrl+O): https://app.pulumi.com/SfedBro-org/devops/dev/previews/0d966d6b-621a-434f-a78f-90ddc40fdb03
+
+     Type                                  Name         Plan
+ +   pulumi:pulumi:Stack                   devops-dev   create
+ +   ├─ yandex:index:VpcSecurityGroup      vm-sg        create
+ +   ├─ yandex:index:VpcSecurityGroupRule  ssh-rule     create
+ +   ├─ yandex:index:VpcSecurityGroupRule  http-rule    create
+ +   ├─ yandex:index:VpcSecurityGroupRule  egress-rule  create
+ +   ├─ yandex:index:VpcSecurityGroupRule  app-rule     create
+ +   └─ yandex:index:ComputeInstance       pulumi-vm    create
+Outputs:
+    external_ip: [unknown]
+
+Resources:
+    + 7 to create
+
+Do you want to perform this update? yes
+Updating (dev)
+
+View in Browser (Ctrl+O): https://app.pulumi.com/SfedBro-org/devops/dev/updates/1
+
+     Type                                  Name         Status
+ +   pulumi:pulumi:Stack                   devops-dev   created (50s)
+ +   ├─ yandex:index:VpcSecurityGroup      vm-sg        created (7s)
+ +   ├─ yandex:index:VpcSecurityGroupRule  ssh-rule     created (1.00s)
+ +   ├─ yandex:index:VpcSecurityGroupRule  http-rule    created (1s)
+ +   ├─ yandex:index:VpcSecurityGroupRule  app-rule     created (2s)
+ +   ├─ yandex:index:VpcSecurityGroupRule  egress-rule  created (3s)
+ +   └─ yandex:index:ComputeInstance       pulumi-vm    created (41s)
+Outputs:
+    external_ip: "89.169.159.54"
+
+Resources:
+    + 7 created
+
+Duration: 52s
+
+
+(venv) C:\Users\Admin\Desktop\DevOps-Core-Course\pulumi>ssh ubuntu@89.169.159.54
+The authenticity of host '89.169.159.54 (89.169.159.54)' can't be established.
+ED25519 key fingerprint is SHA256:Aa3ALuqo8u1tDPynI4Ykba0wOEV9qverFwDhzrtz2EY.
+This key is not known by any other names.
+Are you sure you want to continue connecting (yes/no/[fingerprint])? yes
+Warning: Permanently added '89.169.159.54' (ED25519) to the list of known hosts.
+Welcome to Ubuntu 18.04.6 LTS (GNU/Linux 4.15.0-112-generic x86_64)
+
+ * Documentation:  https://help.ubuntu.com
+ * Management:     https://landscape.canonical.com
+ * Support:        https://ubuntu.com/advantage
+
+
+#################################################################
+This instance runs Yandex.Cloud Marketplace product
+Please wait while we configure your product...
+
+Documentation for Yandex Cloud Marketplace images available at https://cloud.yandex.ru/docs
+
+#################################################################
+
+
+The programs included with the Ubuntu system are free software;
+the exact distribution terms for each program are described in the
+individual files in /usr/share/doc/*/copyright.
+
+Ubuntu comes with ABSOLUTELY NO WARRANTY, to the extent permitted by
+applicable law.
+
+To run a command as administrator (user "root"), use "sudo <command>".
+See "man sudo_root" for details.
