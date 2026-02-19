@@ -28,6 +28,9 @@ jobs:
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
 
+      - name: Ensure terraform directory exists
+        run: mkdir -p terraform
+
       # Создаём временный Yandex key из GitHub Secret
       - name: Write YC Key
         run: |
