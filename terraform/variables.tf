@@ -14,3 +14,7 @@ variable "zone" {
 variable "subnet_id" {
   type = string
 }
+
+variable "sa_key_path" {
+  type = string
+}

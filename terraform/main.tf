@@ -8,7 +8,7 @@ terraform {
 }
 
 provider "yandex" {
-  service_account_key_file = "C:/Users/Admin/Desktop/DevOps-Core-Course/secrets/yc_key.json"
+  service_account_key_file = var.sa_key_path
   cloud_id                 = var.cloud_id
   folder_id                = var.folder_id
   zone                     = var.zone

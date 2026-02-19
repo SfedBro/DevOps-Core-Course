@@ -23,6 +23,14 @@ jobs:
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
 
+      - name: Create dummy key
+        run: echo "{}" > dummy.json
+
+      - name: Terraform Validate
+        run: terraform validate
+        env:
+          TF_VAR_sa_key_path: dummy.json
+
       - name: Terraform Format Check
         run: terraform fmt -check
 
