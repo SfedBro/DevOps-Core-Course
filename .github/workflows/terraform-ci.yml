@@ -18,8 +18,8 @@ jobs:
 
     # Переменные окружения для всего job
     env:
-      TF_VAR_yc_key_file: ../secrets/yc_key.json # временный путь к ключу
-      TF_VAR_ssh_pub_file: ../secrets/yc_ssh.pub # временный SSH ключ
+      TF_VAR_yc_key_file: terraform/yc_key.json # временный путь к ключу
+      TF_VAR_ssh_pub_file: terraform/yc_ssh.pub # временный SSH ключ
 
     steps:
       - name: Checkout repository
@@ -31,15 +31,15 @@ jobs:
       # Создаём временный Yandex key из GitHub Secret
       - name: Write YC Key
         run: |
-          cat <<EOF > ../secrets/yc_key.json
-          ${{ secrets.YC_KEY_JSON }}
-          EOF
+          cat <<EOF > terraform/yc_key.json
+${{ secrets.YC_KEY_JSON }}
+EOF
 
       - name: Write SSH public key
         run: |
-          cat <<EOF > ../secrets/yc_ssh.pub
-          ${{ secrets.YC_SSH_PUB }}
-          EOF
+          cat <<EOF > terraform/yc_ssh.pub
+${{ secrets.YC_SSH_PUB }}
+EOF
 
       - name: Terraform init
         run: terraform init
