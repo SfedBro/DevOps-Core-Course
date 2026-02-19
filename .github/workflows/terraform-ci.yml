@@ -30,10 +30,16 @@ jobs:
 
       # Создаём временный Yandex key из GitHub Secret
       - name: Write YC Key
-        run: echo "${{ secrets.YC_KEY_JSON }}" > ../secrets/yc_key.json
+        run: |
+          cat <<EOF > ../secrets/yc_key.json
+          ${{ secrets.YC_KEY_JSON }}
+          EOF
 
       - name: Write SSH public key
-        run: echo "${{ secrets.YC_SSH_PUB }}" > ../secrets/yc_ssh.pub
+        run: |
+          cat <<EOF > ../secrets/yc_ssh.pub
+          ${{ secrets.YC_SSH_PUB }}
+          EOF
 
       - name: Terraform init
         run: terraform init
