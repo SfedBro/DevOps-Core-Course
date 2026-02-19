@@ -1,7 +1,7 @@
 terraform {
   required_providers {
     yandex = {
-      source = "yandex-cloud/yandex"
+      source  = "yandex-cloud/yandex"
       version = "~> 0.187.0"
     }
   }
@@ -23,7 +23,6 @@ resource "yandex_compute_instance" "vm-1" {
     memory        = 1
     core_fraction = 20
   }
-
 
   boot_disk {
     initialize_params {
