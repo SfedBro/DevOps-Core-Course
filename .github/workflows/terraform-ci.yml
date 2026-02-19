@@ -32,14 +32,14 @@ jobs:
       - name: Write YC Key
         run: |
           cat <<EOF > terraform/yc_key.json
-${{ secrets.YC_KEY_JSON }}
-EOF
+          ${{ secrets.YC_KEY_JSON }}
+          EOF
 
       - name: Write SSH public key
         run: |
           cat <<EOF > terraform/yc_ssh.pub
-${{ secrets.YC_SSH_PUB }}
-EOF
+          ${{ secrets.YC_SSH_PUB }}
+          EOF
 
       - name: Terraform init
         run: terraform init
