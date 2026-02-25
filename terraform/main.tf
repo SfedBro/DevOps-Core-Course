@@ -1,8 +1,16 @@
+data "yandex_compute_image" "ubuntu_2204" {
+  family = "ubuntu-2204-lts"
+}
+
 terraform {
   required_providers {
     yandex = {
       source  = "yandex-cloud/yandex"
       version = "~> 0.187.0"
+    }
+    github = {
+      source  = "integrations/github"
+      version = "~> 5.0"
     }
   }
   required_version = ">= 0.13"
@@ -26,13 +34,14 @@ resource "yandex_compute_instance" "vm-1" {
 
   boot_disk {
     initialize_params {
-      image_id = "fd8v7ru46kt3s4o5f0uo"
+      image_id = data.yandex_compute_image.ubuntu_2204.id
     }
   }
 
   network_interface {
     subnet_id = var.subnet_id
     nat       = true
+    security_group_ids = [yandex_vpc_security_group.vm-sg.id]
   }
 
   metadata = {

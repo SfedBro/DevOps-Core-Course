@@ -23,3 +23,8 @@ variable "yc_key_file" {
 variable "ssh_key" {
   type = string
 }
+
+variable "TF_VAR_GITHUB_TOKEN" {
+  type        = string
+  description = "GitHub token with repo access"
+}
