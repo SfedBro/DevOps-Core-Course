@@ -4,28 +4,23 @@
   tags:
     - web_app_wipe
   block:
+    - name: Check if compose project directory exists
+      ansible.builtin.stat:
+        path: '{{ compose_project_dir }}'
+      register: web_app_project_dir_stat
+
     - name: Stop and remove compose services
       community.docker.docker_compose_v2:
-        project_src: '{{ web_app_compose_project_dir }}'
+        project_src: '{{ compose_project_dir }}'
         state: absent
         remove_orphans: true
-      register: web_app_compose_result
-      failed_when: web_app_compose_result.failed and "'No such project' not in compose_result.msg"
-
-    - name: Remove docker-compose file
-      ansible.builtin.file:
-        path: '{{ web_app_compose_project_dir }}/docker-compose.yml'
-        state: absent
-      register: web_app_file_result
-      failed_when: false
+      when: web_app_project_dir_stat.stat.exists
 
     - name: Remove compose project directory
       ansible.builtin.file:
-        path: '{{ web_app_compose_project_dir }}'
+        path: '{{ compose_project_dir }}'
         state: absent
-      register: web_app_dir_result
-      failed_when: false
 
     - name: Log wipe completion
       ansible.builtin.debug:
-        msg: 'Application {{ web_app_name }} wiped successfully'
+        msg: 'Application {{ app_name }} wiped successfully'
