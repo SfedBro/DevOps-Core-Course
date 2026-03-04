@@ -1,1 +1,14 @@
 test
+# Python
+**/venv/
+**/__pycache__/
+*.pyc
+
+# Windows/Binaries
+*.exe
+*.dll
+
+# Terraform & Pulumi
+.terraform/
+*.tfstate*
+.pulumi/
