@@ -1,0 +1,9 @@
+---
+dockerhub_username: sfedbro
+dockerhub_password: "{{ lookup('env', 'DOCKERHUB_TOKEN') }}"
+
+app_name: app_python
+docker_image: "{{ dockerhub_username }}/{{ app_name }}"
+docker_image_tag: latest
+app_container_name: "{{ app_name }}"
+app_port: 5000
