@@ -2,11 +2,13 @@ name: Ansible Deployment
 
 on:
   push:
+    branches: [main, master]
     paths:
       - 'ansible/**'
       - '!ansible/docs/**'
       - '.github/workflows/ansible-deploy.yml'
   pull_request:
+    branches: [main, master]
     paths:
       - 'ansible/**'
       - '!ansible/docs/**'
@@ -79,5 +81,5 @@ jobs:
       - name: Verify deployment
         run: |
           sleep 10
-          curl -f "http://${{ secrets.VM_HOST }}:8000"
-          curl -f "http://${{ secrets.VM_HOST }}:8000/health"
+          curl -f http://${{ secrets.VM_HOST }}:8000 || exit 1
+          curl -f http://${{ secrets.VM_HOST }}:8000/health || exit 1

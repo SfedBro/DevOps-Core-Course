@@ -4,9 +4,9 @@
   become: true
 
   roles:
-    - role: ../roles/common
+    - role: common
       tags:
         - common
-    - role: ../roles/docker
+    - role: docker
       tags:
         - docker

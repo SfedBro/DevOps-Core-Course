@@ -1,14 +1,9 @@
-# Lab 6: Advanced Ansible & CI/CD - Submission
-
-**Name:** SfedBro
-**Date:** 2026-03-04
-**Lab Points:** 10/10 (bonus not implemented)
-
----
+# Lab 6: Advanced Ansible & CI/CD
 
 ## 1. Overview
 
 Implemented full Lab 6 core scope in `ansible/`:
+
 - refactored roles with `block`/`rescue`/`always`
 - added tag strategy for selective execution
 - migrated deployment to Docker Compose template + `community.docker.docker_compose_v2`
@@ -136,11 +131,13 @@ ansible-playbook playbooks/deploy.yml --tags web_app_wipe
 ### Jobs
 
 1. `lint`
+
 - installs Ansible + ansible-lint
 - installs required collections
 - runs `ansible-lint playbooks/*.yml`
 
 2. `deploy` (push only)
+
 - prepares SSH from secrets
 - decrypts Vault password from secret
 - runs `ansible-playbook playbooks/deploy.yml`
@@ -177,15 +174,19 @@ ansible-playbook playbooks/deploy.yml -e "web_app_wipe=true"
 ## 7. Challenges & Solutions
 
 1. Role migration from container module to compose module
+
 - solution: introduced compose template + project directory strategy.
 
 2. Safe destructive operations
+
 - solution: added explicit wipe variable default false and dedicated wipe tag.
 
 3. CI path-noise reduction
+
 - solution: workflow path filters with docs exclusion.
 
 4. Compose runtime dependency
+
 - solution: added `docker-compose-plugin` in Docker role package list.
 
 ---
@@ -195,54 +196,69 @@ ansible-playbook playbooks/deploy.yml -e "web_app_wipe=true"
 ### Task 1 research
 
 1. **What happens if rescue block also fails?**
+
 - Play execution fails unless that failing task is ignored.
 
 2. **Can you have nested blocks?**
+
 - Yes; Docker role uses nested block for repository setup and retry flow.
 
 3. **How do tags inherit to tasks within blocks?**
+
 - Tags set on the block apply to child tasks.
 
 ### Task 2 research
 
 1. **`restart: always` vs `restart: unless-stopped`**
+
 - `always` restarts even after manual stop or daemon restart; `unless-stopped` preserves intentional manual stop.
 
 2. **Compose networks vs default bridge networks**
+
 - Compose creates project-scoped managed networks and service DNS; plain bridge is generic and manually managed.
 
 3. **Can you use Vault vars in template?**
+
 - Yes, decrypted Vault values can be used directly in Jinja templates during playbook runtime.
 
 ### Task 3 research
 
 1. **Why variable + tag?**
+
 - Variable controls intent; tag enables targeted execution and safer operator workflow.
 
 2. **Difference from `never` tag?**
+
 - `never` blocks task in normal runs entirely; variable+tag pattern allows both wipe-only and clean reinstall flows.
 
 3. **Why wipe before deploy?**
+
 - Ensures deterministic clean reinstall in a single run.
 
 4. **When clean reinstall vs rolling update?**
+
 - Clean reinstall for drift/corruption; rolling update for low-downtime standard upgrades.
 
 5. **How to extend wipe for images/volumes?**
+
 - Add explicit cleanup tasks (`docker image rm`, volume removal) behind separate boolean flags and dedicated tags.
 
 ### Task 4 research
 
 1. **Security implications of SSH keys in GitHub Secrets**
+
 - Better than hardcoding, but repo/admin compromise can expose deployment access.
 
 2. **How to do staging -> production pipeline?**
+
 - Separate inventories/environments, gated approvals, and staged workflow jobs.
 
 3. **How to support rollbacks?**
+
 - Deploy immutable image tags, persist last successful release, and add rollback workflow/playbook input.
 
 4. **How self-hosted runner changes security**
+
 - Can reduce external SSH surface and improve network isolation if runner host is hardened.
 
 ---
