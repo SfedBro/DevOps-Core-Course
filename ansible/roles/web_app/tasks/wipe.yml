@@ -10,7 +10,7 @@
         state: absent
         remove_orphans: true
       register: web_app_compose_result
-      failed_when: compose_result.failed and "'No such project' not in compose_result.msg"
+      failed_when: web_app_compose_result.failed and "'No such project' not in compose_result.msg"
 
     - name: Remove docker-compose file
       ansible.builtin.file:
