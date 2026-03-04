@@ -33,3 +33,17 @@ Pulumi.*.yaml
 # OS
 .DS_Store
 Thumbs.db
+test
+# Python
+**/venv/
+**/__pycache__/
+*.pyc
+
+# Windows/Binaries
+*.exe
+*.dll
+
+# Terraform & Pulumi
+.terraform/
+*.tfstate*
+.pulumi/
