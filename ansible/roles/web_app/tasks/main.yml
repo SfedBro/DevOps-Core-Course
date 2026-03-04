@@ -6,31 +6,35 @@
     - web_app_wipe
 
 - name: Deploy web application with Docker Compose
+  tags:
+    - web_app
+    - app_deploy
+    - compose
   block:
     - name: Create compose project directory
       ansible.builtin.file:
-        path: "{{ compose_project_dir }}"
+        path: '{{ compose_project_dir }}'
         state: directory
         owner: root
         group: root
-        mode: "0755"
+        mode: '0755'
 
     - name: Render docker-compose template
       ansible.builtin.template:
         src: docker-compose.yml.j2
-        dest: "{{ compose_project_dir }}/docker-compose.yml"
-        mode: "0644"
+        dest: '{{ compose_project_dir }}/docker-compose.yml'
+        mode: '0644'
 
     - name: Deploy compose project
       community.docker.docker_compose_v2:
-        project_src: "{{ compose_project_dir }}"
+        project_src: '{{ compose_project_dir }}'
         state: present
         pull: always
       register: web_app_compose_result
 
     - name: Wait for application endpoint
       ansible.builtin.uri:
-        url: "http://localhost:{{ app_port }}/health"
+        url: 'http://localhost:{{ app_port }}/health'
         status_code: 200
       register: web_app_healthcheck
       retries: 10
@@ -44,8 +48,4 @@
 
     - name: Fail deployment explicitly
       ansible.builtin.fail:
-        msg: "Docker Compose deployment failed for {{ app_name }}"
-  tags:
-    - web_app
-    - app_deploy
-    - compose
+        msg: 'Docker Compose deployment failed for {{ app_name }}'

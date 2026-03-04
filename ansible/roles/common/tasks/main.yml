@@ -1,5 +1,9 @@
 ---
-- name: Common role package setup with error handling
+- name: Common Role Package Setup With Error Handling
+  become: true
+  tags:
+    - common
+    - packages
   block:
     - name: Update apt cache
       ansible.builtin.apt:
@@ -31,12 +35,12 @@
         path: /tmp/common-role.log
         create: true
         line: 'common role packages finished'
+
+- name: Common role user management
   become: true
   tags:
     - common
-    - packages
-
-- name: Common role user management
+    - users
   block:
     - name: Ensure managed users exist
       ansible.builtin.user:
@@ -44,7 +48,3 @@
         state: present
         shell: /bin/bash
       loop: '{{ common_users }}'
-  become: true
-  tags:
-    - common
-    - users
