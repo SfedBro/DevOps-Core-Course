@@ -1,32 +1,31 @@
 ---
 - name: Wipe Web Application Resources
+  when: web_app_wipe | bool
+  tags:
+    - web_app_wipe
   block:
     - name: Stop and remove compose services
       community.docker.docker_compose_v2:
         project_src: '{{ web_app_compose_project_dir }}'
         state: absent
         remove_orphans: true
-      register: compose_result
+      register: web_app_compose_result
       failed_when: compose_result.failed and "'No such project' not in compose_result.msg"
 
     - name: Remove docker-compose file
       ansible.builtin.file:
         path: '{{ web_app_compose_project_dir }}/docker-compose.yml'
         state: absent
-      register: file_result
+      register: web_app_file_result
       failed_when: false
 
     - name: Remove compose project directory
       ansible.builtin.file:
         path: '{{ web_app_compose_project_dir }}'
         state: absent
-      register: dir_result
+      register: web_app_dir_result
       failed_when: false
 
     - name: Log wipe completion
       ansible.builtin.debug:
         msg: 'Application {{ web_app_name }} wiped successfully'
-
-  when: web_app_wipe | bool
-  tags:
-    - web_app_wipe
