@@ -22,7 +22,7 @@
     - name: Recover apt metadata
       become: true
       ansible.builtin.apt:
-        update_cache: yes
+        update_cache: true
 
     - name: Retry common packages installation
       ansible.builtin.apt:
@@ -35,6 +35,7 @@
         path: /tmp/common-role.log
         create: true
         line: 'common role packages finished'
+        mode: '0644'
 
 - name: Common role user management
   become: true
