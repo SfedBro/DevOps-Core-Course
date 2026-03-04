@@ -6,4 +6,8 @@ common_packages:
   - vim
   - htop
 
+# Users that should exist on target hosts.
+common_users:
+  - "{{ ansible_user | default('ubuntu') }}"
+
 system_timezone: UTC

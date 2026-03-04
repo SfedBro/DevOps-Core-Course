@@ -2,8 +2,14 @@
 dockerhub_username: sfedbro
 dockerhub_password: "{{ lookup('env', 'DOCKERHUB_TOKEN') }}"
 
-app_name: app_python
-docker_image: "{{ dockerhub_username }}/{{ app_name }}"
-docker_image_tag: latest
-app_container_name: "{{ app_name }}"
-app_port: 5000
+# App settings used by web_app role.
+app_name: devops-app
+docker_image: "{{ dockerhub_username }}/app_python"
+docker_tag: latest
+app_port: 8000
+app_internal_port: 5000
+compose_project_dir: "/opt/{{ app_name }}"
+
+# You can move secrets to Vault and reference them here.
+app_env:
+  APP_ENV: production
