@@ -1,5 +1,9 @@
 ---
 - name: Docker installation and repository configuration
+  become: true
+  tags:
+    - docker
+    - docker_install
   block:
     - name: Install Docker prerequisite packages
       ansible.builtin.apt:
@@ -21,7 +25,7 @@
 
         - name: Add Docker repository
           ansible.builtin.apt_repository:
-            repo: "deb https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable"
+            repo: 'deb https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable'
             state: present
             filename: docker
       rescue:
@@ -55,19 +59,15 @@
         name: docker
         state: started
         enabled: true
-  become: true
-  tags:
-    - docker
-    - docker_install
 
 - name: Docker runtime configuration
-  block:
-    - name: Add user to docker group
-      ansible.builtin.user:
-        name: "{{ docker_user }}"
-        groups: docker
-        append: true
   become: true
   tags:
     - docker
     - docker_config
+  block:
+    - name: Add user to docker group
+      ansible.builtin.user:
+        name: '{{ docker_user }}'
+        groups: docker
+        append: true

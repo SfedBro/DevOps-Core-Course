@@ -10,4 +10,4 @@ common_packages:
 common_users:
   - "{{ ansible_user | default('ubuntu') }}"
 
-system_timezone: UTC
+common_system_timezone: UTC

@@ -8,20 +8,21 @@
 
     - name: Install common packages
       ansible.builtin.apt:
-        name: "{{ common_packages }}"
+        name: '{{ common_packages }}'
         state: present
 
     - name: Set timezone
       community.general.timezone:
-        name: "{{ system_timezone }}"
+        name: '{{ system_timezone }}'
   rescue:
     - name: Recover apt metadata
-      ansible.builtin.command: apt-get update --fix-missing
-      changed_when: true
+      become: true
+      ansible.builtin.apt:
+        update_cache: yes
 
     - name: Retry common packages installation
       ansible.builtin.apt:
-        name: "{{ common_packages }}"
+        name: '{{ common_packages }}'
         state: present
         update_cache: true
   always:
@@ -29,7 +30,7 @@
       ansible.builtin.lineinfile:
         path: /tmp/common-role.log
         create: true
-        line: "common role packages finished"
+        line: 'common role packages finished'
   become: true
   tags:
     - common
@@ -39,10 +40,10 @@
   block:
     - name: Ensure managed users exist
       ansible.builtin.user:
-        name: "{{ item }}"
+        name: '{{ item }}'
         state: present
         shell: /bin/bash
-      loop: "{{ common_users }}"
+      loop: '{{ common_users }}'
   become: true
   tags:
     - common
