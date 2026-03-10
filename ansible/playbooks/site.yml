@@ -1,0 +1,6 @@
+---
+- name: Provision infrastructure
+  import_playbook: provision.yml
+
+- name: Deploy application
+  import_playbook: deploy.yml

@@ -1,0 +1,64 @@
+name: Terraform CI
+
+on:
+  push:
+    paths:
+      - 'terraform/**'
+  pull_request:
+    paths:
+      - 'terraform/**'
+
+jobs:
+  terraform:
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: terraform
+
+    # Переменные окружения для всего job
+    env:
+      TF_VAR_yc_key_file: terraform/yc_key.json # временный путь к ключу
+      TF_VAR_ssh_pub_file: terraform/yc_ssh.pub # временный SSH ключ
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Ensure terraform directory exists
+        run: mkdir -p terraform
+
+      # Создаём временный Yandex key из GitHub Secret
+      - name: Write YC Key
+        run: |
+          cat <<EOF > terraform/yc_key.json
+          ${{ secrets.YC_KEY_JSON }}
+          EOF
+
+      - name: Write SSH public key
+        run: |
+          cat <<EOF > terraform/yc_ssh.pub
+          ${{ secrets.YC_SSH_PUB }}
+          EOF
+
+      - name: Terraform init
+        run: terraform init
+
+      - name: Terraform validate
+        run: terraform validate
+        env:
+          TF_VAR_yc_key_file: yc_key.json
+
+      - name: Terraform fmt check
+        run: terraform fmt -check
+
+      - name: Setup TFLint
+        uses: terraform-linters/setup-tflint@v4
+        with:
+          tflint_version: latest
+
+      - name: Run TFLint
+        run: tflint --format compact

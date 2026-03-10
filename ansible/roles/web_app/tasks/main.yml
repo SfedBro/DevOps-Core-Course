@@ -1,0 +1,51 @@
+---
+# Wipe stage is included first to support clean reinstall.
+- name: Include wipe tasks
+  ansible.builtin.include_tasks: wipe.yml
+  tags:
+    - web_app_wipe
+
+- name: Deploy web application with Docker Compose
+  tags:
+    - web_app
+    - app_deploy
+    - compose
+  block:
+    - name: Create compose project directory
+      ansible.builtin.file:
+        path: '{{ compose_project_dir }}'
+        state: directory
+        owner: root
+        group: root
+        mode: '0755'
+
+    - name: Render docker-compose template
+      ansible.builtin.template:
+        src: docker-compose.yml.j2
+        dest: '{{ compose_project_dir }}/docker-compose.yml'
+        mode: '0644'
+
+    - name: Deploy compose project
+      community.docker.docker_compose_v2:
+        project_src: '{{ compose_project_dir }}'
+        state: present
+        pull: always
+      register: web_app_compose_result
+
+    - name: Wait for application endpoint
+      ansible.builtin.uri:
+        url: 'http://localhost:{{ app_port }}/health'
+        status_code: 200
+      register: web_app_healthcheck
+      retries: 10
+      delay: 6
+      until: web_app_healthcheck.status == 200
+
+  rescue:
+    - name: Print deployment failure context
+      ansible.builtin.debug:
+        var: web_app_compose_result
+
+    - name: Fail deployment explicitly
+      ansible.builtin.fail:
+        msg: 'Docker Compose deployment failed for {{ app_name }}'

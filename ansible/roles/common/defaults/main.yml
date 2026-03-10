@@ -1,0 +1,13 @@
+---
+common_packages:
+  - python3-pip
+  - curl
+  - git
+  - vim
+  - htop
+
+# Users that should exist on target hosts.
+common_users:
+  - "{{ ansible_user | default('ubuntu') }}"
+
+common_system_timezone: UTC

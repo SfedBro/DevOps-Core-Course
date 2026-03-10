@@ -1,0 +1,51 @@
+---
+- name: Common Role Package Setup With Error Handling
+  become: true
+  tags:
+    - common
+    - packages
+  block:
+    - name: Update apt cache
+      ansible.builtin.apt:
+        update_cache: true
+        cache_valid_time: 3600
+
+    - name: Install common packages
+      ansible.builtin.apt:
+        name: '{{ common_packages }}'
+        state: present
+
+    - name: Set timezone
+      community.general.timezone:
+        name: '{{ system_timezone }}'
+  rescue:
+    - name: Recover apt metadata
+      become: true
+      ansible.builtin.apt:
+        update_cache: true
+
+    - name: Retry common packages installation
+      ansible.builtin.apt:
+        name: '{{ common_packages }}'
+        state: present
+        update_cache: true
+  always:
+    - name: Log common packages completion
+      ansible.builtin.lineinfile:
+        path: /tmp/common-role.log
+        create: true
+        line: 'common role packages finished'
+        mode: '0644'
+
+- name: Common role user management
+  become: true
+  tags:
+    - common
+    - users
+  block:
+    - name: Ensure managed users exist
+      ansible.builtin.user:
+        name: '{{ item }}'
+        state: present
+        shell: /bin/bash
+      loop: '{{ common_users }}'

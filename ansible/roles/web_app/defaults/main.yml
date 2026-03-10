@@ -1,0 +1,18 @@
+---
+# Application configuration
+web_app_name: devops-app
+web_app_docker_image: sfedbro/app_python
+web_app_docker_tag: latest
+web_app_port: 8000
+web_app_internal_port: 5000
+web_app_restart_policy: unless-stopped
+
+# Docker Compose configuration
+web_app_compose_project_dir: '/opt/{{ app_name }}'
+web_app_docker_compose_version: '3.8'
+web_app_env: {}
+
+# Wipe Logic Control
+# Wipe only: ansible-playbook playbooks/deploy.yml -e "web_app_wipe=true" --tags web_app_wipe
+# Clean install: ansible-playbook playbooks/deploy.yml -e "web_app_wipe=true"
+web_app_wipe: false
