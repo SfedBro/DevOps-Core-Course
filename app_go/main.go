@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 	"net"
 	"net/http"
 	"os"
@@ -19,11 +18,11 @@ type Service struct {
 }
 
 type System struct {
-	Hostname      string `json:"hostname"`
-	Platform      string `json:"platform"`
-	Architecture  string `json:"architecture"`
-	CPUCount      int    `json:"cpu_count"`
-	GoVersion     string `json:"go_version"`
+	Hostname     string `json:"hostname"`
+	Platform     string `json:"platform"`
+	Architecture string `json:"architecture"`
+	CPUCount     int    `json:"cpu_count"`
+	GoVersion    string `json:"go_version"`
 }
 
 type RuntimeInfo struct {
@@ -34,7 +33,7 @@ type RuntimeInfo struct {
 }
 
 type RequestInfo struct {
-	ClientIP string `json:"client_ip"`
+	ClientIP  string `json:"client_ip"`
 	UserAgent string `json:"user_agent"`
 	Method    string `json:"method"`
 	Path      string `json:"path"`
@@ -56,6 +55,33 @@ type ServiceInfo struct {
 
 var startTime = time.Now().UTC()
 
+type responseWriter struct {
+	http.ResponseWriter
+	statusCode int
+}
+
+func (rw *responseWriter) WriteHeader(code int) {
+	rw.statusCode = code
+	rw.ResponseWriter.WriteHeader(code)
+}
+
+func logEvent(level string, message string, fields map[string]interface{}) {
+	payload := map[string]interface{}{
+		"timestamp": time.Now().UTC().Format(time.RFC3339Nano),
+		"level":     level,
+		"message":   message,
+		"service":   "devops-go",
+	}
+
+	for key, value := range fields {
+		payload[key] = value
+	}
+
+	if err := json.NewEncoder(os.Stdout).Encode(payload); err != nil {
+		fmt.Fprintf(os.Stderr, "{\"level\":\"ERROR\",\"message\":\"failed to encode log\",\"error\":%q}\n", err.Error())
+	}
+}
+
 func mainHandler(w http.ResponseWriter, r *http.Request) {
 	uptimeSeconds := int64(time.Since(startTime).Seconds())
 	hours := uptimeSeconds / 3600
@@ -63,13 +89,19 @@ func mainHandler(w http.ResponseWriter, r *http.Request) {
 
 	hostname, err := os.Hostname()
 	if err != nil {
-		log.Printf("Error getting hostname: %v", err)
+		logEvent("ERROR", "failed to resolve hostname", map[string]interface{}{
+			"event": "hostname_error",
+			"error": err.Error(),
+		})
 		hostname = "unknown"
 	}
 
 	clientIP, _, err := net.SplitHostPort(r.RemoteAddr)
 	if err != nil {
-		log.Printf("Error parsing client IP: %v", err)
+		logEvent("ERROR", "failed to parse client ip", map[string]interface{}{
+			"event": "client_ip_error",
+			"error": err.Error(),
+		})
 		clientIP = r.RemoteAddr
 	}
 
@@ -94,7 +126,7 @@ func mainHandler(w http.ResponseWriter, r *http.Request) {
 			GoVersion:    runtime.Version(),
 		},
 		Request: RequestInfo{
-			ClientIP: clientIP,
+			ClientIP:  clientIP,
 			UserAgent: r.Header.Get("User-Agent"),
 			Method:    r.Method,
 			Path:      r.URL.Path,
@@ -107,7 +139,10 @@ func mainHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(resp); err != nil {
-		log.Printf("Error encoding JSON response: %v", err)
+		logEvent("ERROR", "failed to encode response", map[string]interface{}{
+			"event": "response_encode_error",
+			"error": err.Error(),
+		})
 	}
 }
 
@@ -115,9 +150,9 @@ func healthHandler(w http.ResponseWriter, r *http.Request) {
 	uptimeSeconds := int64(time.Since(startTime).Seconds())
 
 	resp := map[string]interface{}{
-		"status":          "healthy",
-		"timestamp":       time.Now().UTC().Format(time.RFC3339),
-		"uptime_seconds":  uptimeSeconds,
+		"status":         "healthy",
+		"timestamp":      time.Now().UTC().Format(time.RFC3339),
+		"uptime_seconds": uptimeSeconds,
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -128,24 +163,61 @@ func formatUptime(hours int64, minutes int64) string {
 	return fmt.Sprintf("%d hours, %d minutes", hours, minutes)
 }
 
+func loggingMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		started := time.Now()
+		writer := &responseWriter{ResponseWriter: w, statusCode: http.StatusOK}
+		next.ServeHTTP(writer, r)
+
+		clientIP, _, err := net.SplitHostPort(r.RemoteAddr)
+		if err != nil {
+			clientIP = r.RemoteAddr
+		}
+
+		level := "INFO"
+		if writer.statusCode >= http.StatusInternalServerError {
+			level = "ERROR"
+		} else if writer.statusCode >= http.StatusBadRequest {
+			level = "WARN"
+		}
+
+		logEvent(level, "request completed", map[string]interface{}{
+			"event":       "http_request",
+			"method":      r.Method,
+			"path":        r.URL.Path,
+			"status_code": writer.statusCode,
+			"client_ip":   clientIP,
+			"duration_ms": time.Since(started).Milliseconds(),
+		})
+	})
+}
+
 func main() {
 	host := os.Getenv("HOST")
 	if host == "" {
 		host = "0.0.0.0"
 	}
-	
+
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8080"
 	}
 
-	http.HandleFunc("/", mainHandler)
-	http.HandleFunc("/health", healthHandler)
+	mux := http.NewServeMux()
+	mux.HandleFunc("/", mainHandler)
+	mux.HandleFunc("/health", healthHandler)
 
 	addr := host + ":" + port
-	fmt.Printf("Starting server on %s\n", addr)
-	err := http.ListenAndServe(addr, nil)
+	logEvent("INFO", "application startup", map[string]interface{}{
+		"event": "startup",
+		"host":  host,
+		"port":  port,
+	})
+	err := http.ListenAndServe(addr, loggingMiddleware(mux))
 	if err != nil {
-		fmt.Printf("Server failed: %s\n", err)
+		logEvent("ERROR", "server failed", map[string]interface{}{
+			"event": "server_error",
+			"error": err.Error(),
+		})
 	}
 }

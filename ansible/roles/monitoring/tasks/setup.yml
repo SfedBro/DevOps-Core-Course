@@ -1,0 +1,42 @@
+---
+- name: Create monitoring directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  loop:
+    - "{{ monitoring_project_dir }}"
+    - "{{ monitoring_project_dir }}/loki"
+    - "{{ monitoring_project_dir }}/promtail"
+    - "{{ monitoring_project_dir }}/grafana"
+    - "{{ monitoring_project_dir }}/grafana/provisioning"
+    - "{{ monitoring_project_dir }}/grafana/provisioning/datasources"
+    - "{{ monitoring_project_dir }}/grafana/provisioning/dashboards"
+    - "{{ monitoring_project_dir }}/grafana/dashboards"
+
+- name: Render monitoring environment file
+  ansible.builtin.template:
+    src: env.j2
+    dest: "{{ monitoring_project_dir }}/.env"
+    mode: "0600"
+
+- name: Render monitoring templates
+  ansible.builtin.template:
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+    mode: "0644"
+  loop:
+    - src: docker-compose.yml.j2
+      dest: "{{ monitoring_project_dir }}/docker-compose.yml"
+    - src: loki-config.yml.j2
+      dest: "{{ monitoring_project_dir }}/loki/config.yml"
+    - src: promtail-config.yml.j2
+      dest: "{{ monitoring_project_dir }}/promtail/config.yml"
+    - src: grafana-datasource.yml.j2
+      dest: "{{ monitoring_project_dir }}/grafana/provisioning/datasources/loki.yml"
+    - src: grafana-dashboards.yml.j2
+      dest: "{{ monitoring_project_dir }}/grafana/provisioning/dashboards/dashboards.yml"
+    - src: grafana-dashboard.json.j2
+      dest: "{{ monitoring_project_dir }}/grafana/dashboards/lab07-observability.json"
