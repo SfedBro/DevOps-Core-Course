@@ -1,4 +1,34 @@
 services:
+  prometheus:
+    image: prom/prometheus:{{ monitoring_prometheus_version }}
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time={{ monitoring_prometheus_retention_time }}
+      - --storage.tsdb.retention.size={{ monitoring_prometheus_retention_size }}
+    ports:
+      - "{{ monitoring_prometheus_port }}:9090"
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    networks:
+      - logging
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:9090/-/healthy || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    deploy:
+      resources:
+        limits:
+          cpus: "{{ monitoring_resources.prometheus.limits.cpus }}"
+          memory: {{ monitoring_resources.prometheus.limits.memory }}
+        reservations:
+          cpus: "{{ monitoring_resources.prometheus.reservations.cpus }}"
+          memory: {{ monitoring_resources.prometheus.reservations.memory }}
+
   loki:
     image: grafana/loki:{{ monitoring_loki_version }}
     command:
@@ -59,6 +89,7 @@ services:
     environment:
       GF_AUTH_ANONYMOUS_ENABLED: "false"
       GF_SECURITY_ALLOW_EMBEDDING: "false"
+      GF_METRICS_ENABLED: "true"
     volumes:
       - grafana-data:/var/lib/grafana
       - ./grafana/provisioning:/etc/grafana/provisioning:ro
@@ -67,6 +98,8 @@ services:
       - logging
     restart: unless-stopped
     depends_on:
+      prometheus:
+        condition: service_healthy
       loki:
         condition: service_healthy
     healthcheck:
@@ -94,7 +127,15 @@ services:
       logging: "promtail"
       app: "devops-python"
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:{{ monitoring_python_internal_port }}/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
     depends_on:
+      prometheus:
+        condition: service_healthy
       loki:
         condition: service_healthy
       promtail:
@@ -118,7 +159,15 @@ services:
       logging: "promtail"
       app: "devops-go"
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:{{ monitoring_go_internal_port }}/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
     depends_on:
+      prometheus:
+        condition: service_healthy
       loki:
         condition: service_healthy
       promtail:
@@ -137,6 +186,7 @@ networks:
     name: logging
 
 volumes:
+  prometheus-data:
   loki-data:
   grafana-data:
   promtail-positions:

@@ -1,4 +1,38 @@
 services:
+  prometheus:
+    image: prom/prometheus:v3.9.0
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=15d
+      - --storage.tsdb.retention.size=10GB
+    ports:
+      - '9090:9090'
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    networks:
+      - logging
+    restart: unless-stopped
+    healthcheck:
+      test:
+        [
+          'CMD-SHELL',
+          'wget --no-verbose --tries=1 --spider http://localhost:9090/-/healthy || exit 1',
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+
   loki:
     image: grafana/loki:3.0.0
     command:
@@ -63,6 +97,7 @@ services:
       GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?set in monitoring/.env}
       GF_AUTH_ANONYMOUS_ENABLED: 'false'
       GF_SECURITY_ALLOW_EMBEDDING: 'false'
+      GF_METRICS_ENABLED: 'true'
     volumes:
       - grafana-data:/var/lib/grafana
       - ./grafana/provisioning:/etc/grafana/provisioning:ro
@@ -71,6 +106,8 @@ services:
       - logging
     restart: unless-stopped
     depends_on:
+      prometheus:
+        condition: service_healthy
       loki:
         condition: service_healthy
     healthcheck:
@@ -86,11 +123,11 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '1.0'
-          memory: 1G
+          cpus: '0.50'
+          memory: 512M
         reservations:
-          cpus: '0.25'
-          memory: 256M
+          cpus: '0.10'
+          memory: 128M
 
   app-python:
     build:
@@ -104,7 +141,19 @@ services:
       logging: 'promtail'
       app: 'devops-python'
     restart: unless-stopped
+    healthcheck:
+      test:
+        [
+          'CMD-SHELL',
+          'wget --no-verbose --tries=1 --spider http://localhost:5000/health || exit 1',
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
     depends_on:
+      prometheus:
+        condition: service_healthy
       loki:
         condition: service_healthy
       promtail:
@@ -113,10 +162,10 @@ services:
       resources:
         limits:
           cpus: '0.50'
-          memory: 512M
+          memory: 256M
         reservations:
           cpus: '0.10'
-          memory: 128M
+          memory: 64M
 
   app-go:
     build:
@@ -130,7 +179,19 @@ services:
       logging: 'promtail'
       app: 'devops-go'
     restart: unless-stopped
+    healthcheck:
+      test:
+        [
+          'CMD-SHELL',
+          'wget --no-verbose --tries=1 --spider http://localhost:8080/health || exit 1',
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
     depends_on:
+      prometheus:
+        condition: service_healthy
       loki:
         condition: service_healthy
       promtail:
@@ -139,16 +200,17 @@ services:
       resources:
         limits:
           cpus: '0.50'
-          memory: 512M
+          memory: 256M
         reservations:
           cpus: '0.10'
-          memory: 128M
+          memory: 64M
 
 networks:
   logging:
     name: logging
 
 volumes:
+  prometheus-data:
   loki-data:
   grafana-data:
   promtail-positions:

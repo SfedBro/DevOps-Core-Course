@@ -36,7 +36,7 @@ docker compose ps
 
 4. Open Grafana at `http://localhost:13000` and log in with the credentials from `.env`.
 
-5. Open `Dashboards -> Lab 07 -> Lab 07 - Observability & Logging`.
+5. Open `Dashboards -> Observability -> Lab 07 - Observability & Logging`.
 
 ## Configuration
 

@@ -8,6 +8,7 @@
     mode: "0755"
   loop:
     - "{{ monitoring_project_dir }}"
+    - "{{ monitoring_project_dir }}/prometheus"
     - "{{ monitoring_project_dir }}/loki"
     - "{{ monitoring_project_dir }}/promtail"
     - "{{ monitoring_project_dir }}/grafana"
@@ -30,13 +31,19 @@
   loop:
     - src: docker-compose.yml.j2
       dest: "{{ monitoring_project_dir }}/docker-compose.yml"
+    - src: prometheus.yml.j2
+      dest: "{{ monitoring_project_dir }}/prometheus/prometheus.yml"
     - src: loki-config.yml.j2
       dest: "{{ monitoring_project_dir }}/loki/config.yml"
     - src: promtail-config.yml.j2
       dest: "{{ monitoring_project_dir }}/promtail/config.yml"
     - src: grafana-datasource.yml.j2
       dest: "{{ monitoring_project_dir }}/grafana/provisioning/datasources/loki.yml"
+    - src: grafana-prometheus-datasource.yml.j2
+      dest: "{{ monitoring_project_dir }}/grafana/provisioning/datasources/prometheus.yml"
     - src: grafana-dashboards.yml.j2
       dest: "{{ monitoring_project_dir }}/grafana/provisioning/dashboards/dashboards.yml"
     - src: grafana-dashboard.json.j2
       dest: "{{ monitoring_project_dir }}/grafana/dashboards/lab07-observability.json"
+    - src: grafana-metrics-dashboard.json.j2
+      dest: "{{ monitoring_project_dir }}/grafana/dashboards/lab08-metrics.json"

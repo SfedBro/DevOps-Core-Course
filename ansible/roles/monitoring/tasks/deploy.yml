@@ -15,6 +15,15 @@
   delay: 6
   until: monitoring_loki_health.status == 200
 
+- name: Wait for Prometheus readiness
+  ansible.builtin.uri:
+    url: "http://localhost:{{ monitoring_prometheus_port }}/-/healthy"
+    status_code: 200
+  register: monitoring_prometheus_health
+  retries: 15
+  delay: 6
+  until: monitoring_prometheus_health.status == 200
+
 - name: Wait for Grafana readiness
   ansible.builtin.uri:
     url: "http://localhost:{{ monitoring_grafana_port }}/api/health"
