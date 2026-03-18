@@ -67,3 +67,21 @@ def test_system_info_fields():
 def test_not_found_endpoint():
     response = client.get("/does-not-exist")
     assert response.status_code == 404
+
+
+def test_metrics_endpoint_exposes_prometheus_metrics():
+    client.get("/")
+    client.get("/health")
+
+    response = client.get("/metrics")
+
+    assert response.status_code == 200
+    assert "text/plain" in response.headers["content-type"]
+    body = response.text
+
+    assert "http_requests_total" in body
+    assert "http_request_duration_seconds" in body
+    assert "http_requests_in_progress" in body
+    assert "devops_info_endpoint_calls_total" in body
+    assert 'endpoint="/"' in body
+    assert 'endpoint="/health"' in body

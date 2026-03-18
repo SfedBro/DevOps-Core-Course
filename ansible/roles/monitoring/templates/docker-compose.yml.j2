@@ -1,0 +1,192 @@
+services:
+  prometheus:
+    image: prom/prometheus:{{ monitoring_prometheus_version }}
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time={{ monitoring_prometheus_retention_time }}
+      - --storage.tsdb.retention.size={{ monitoring_prometheus_retention_size }}
+    ports:
+      - "{{ monitoring_prometheus_port }}:9090"
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    networks:
+      - logging
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:9090/-/healthy || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    deploy:
+      resources:
+        limits:
+          cpus: "{{ monitoring_resources.prometheus.limits.cpus }}"
+          memory: {{ monitoring_resources.prometheus.limits.memory }}
+        reservations:
+          cpus: "{{ monitoring_resources.prometheus.reservations.cpus }}"
+          memory: {{ monitoring_resources.prometheus.reservations.memory }}
+
+  loki:
+    image: grafana/loki:{{ monitoring_loki_version }}
+    command:
+      - -config.file=/etc/loki/config.yml
+    ports:
+      - "{{ monitoring_loki_port }}:{{ monitoring_loki_port }}"
+    volumes:
+      - ./loki/config.yml:/etc/loki/config.yml:ro
+      - loki-data:/loki
+    networks:
+      - logging
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:{{ monitoring_loki_port }}/ready || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    deploy:
+      resources:
+        limits:
+          cpus: "{{ monitoring_resources.loki.limits.cpus }}"
+          memory: {{ monitoring_resources.loki.limits.memory }}
+        reservations:
+          cpus: "{{ monitoring_resources.loki.reservations.cpus }}"
+          memory: {{ monitoring_resources.loki.reservations.memory }}
+
+  promtail:
+    image: grafana/promtail:{{ monitoring_promtail_version }}
+    command:
+      - -config.file=/etc/promtail/config.yml
+    volumes:
+      - ./promtail/config.yml:/etc/promtail/config.yml:ro
+      - promtail-positions:/var/lib/promtail
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - logging
+    restart: unless-stopped
+    depends_on:
+      loki:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: "{{ monitoring_resources.promtail.limits.cpus }}"
+          memory: {{ monitoring_resources.promtail.limits.memory }}
+        reservations:
+          cpus: "{{ monitoring_resources.promtail.reservations.cpus }}"
+          memory: {{ monitoring_resources.promtail.reservations.memory }}
+
+  grafana:
+    image: grafana/grafana:{{ monitoring_grafana_version }}
+    ports:
+      - "{{ monitoring_grafana_port }}:3000"
+    env_file:
+      - .env
+    environment:
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+      GF_SECURITY_ALLOW_EMBEDDING: "false"
+      GF_METRICS_ENABLED: "true"
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+    networks:
+      - logging
+    restart: unless-stopped
+    depends_on:
+      prometheus:
+        condition: service_healthy
+      loki:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3000/api/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          cpus: "{{ monitoring_resources.grafana.limits.cpus }}"
+          memory: {{ monitoring_resources.grafana.limits.memory }}
+        reservations:
+          cpus: "{{ monitoring_resources.grafana.reservations.cpus }}"
+          memory: {{ monitoring_resources.grafana.reservations.memory }}
+
+  app-python:
+    image: "{{ monitoring_python_app_image }}"
+    ports:
+      - "{{ monitoring_python_port }}:{{ monitoring_python_internal_port }}"
+    networks:
+      - logging
+    labels:
+      logging: "promtail"
+      app: "devops-python"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:{{ monitoring_python_internal_port }}/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    depends_on:
+      prometheus:
+        condition: service_healthy
+      loki:
+        condition: service_healthy
+      promtail:
+        condition: service_started
+    deploy:
+      resources:
+        limits:
+          cpus: "{{ monitoring_resources.app_python.limits.cpus }}"
+          memory: {{ monitoring_resources.app_python.limits.memory }}
+        reservations:
+          cpus: "{{ monitoring_resources.app_python.reservations.cpus }}"
+          memory: {{ monitoring_resources.app_python.reservations.memory }}
+
+  app-go:
+    image: "{{ monitoring_go_app_image }}"
+    ports:
+      - "{{ monitoring_go_port }}:{{ monitoring_go_internal_port }}"
+    networks:
+      - logging
+    labels:
+      logging: "promtail"
+      app: "devops-go"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:{{ monitoring_go_internal_port }}/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    depends_on:
+      prometheus:
+        condition: service_healthy
+      loki:
+        condition: service_healthy
+      promtail:
+        condition: service_started
+    deploy:
+      resources:
+        limits:
+          cpus: "{{ monitoring_resources.app_go.limits.cpus }}"
+          memory: {{ monitoring_resources.app_go.limits.memory }}
+        reservations:
+          cpus: "{{ monitoring_resources.app_go.reservations.cpus }}"
+          memory: {{ monitoring_resources.app_go.reservations.memory }}
+
+networks:
+  logging:
+    name: logging
+
+volumes:
+  prometheus-data:
+  loki-data:
+  grafana-data:
+  promtail-positions:

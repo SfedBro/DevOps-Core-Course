@@ -1,0 +1,125 @@
+# HELP python_gc_objects_collected_total Objects collected during gc
+# TYPE python_gc_objects_collected_total counter
+python_gc_objects_collected_total{generation="0"} 2723.0
+python_gc_objects_collected_total{generation="1"} 593.0
+python_gc_objects_collected_total{generation="2"} 0.0
+# HELP python_gc_objects_uncollectable_total Uncollectable objects found during GC
+# TYPE python_gc_objects_uncollectable_total counter
+python_gc_objects_uncollectable_total{generation="0"} 0.0
+python_gc_objects_uncollectable_total{generation="1"} 0.0
+python_gc_objects_uncollectable_total{generation="2"} 0.0
+# HELP python_gc_collections_total Number of times this generation was collected
+# TYPE python_gc_collections_total counter
+python_gc_collections_total{generation="0"} 111.0
+python_gc_collections_total{generation="1"} 10.0
+python_gc_collections_total{generation="2"} 0.0
+# HELP python_info Python platform information
+# TYPE python_info gauge
+python_info{implementation="CPython",major="3",minor="12",patchlevel="13",version="3.12.13"} 1.0
+# HELP process_virtual_memory_bytes Virtual memory size in bytes.
+# TYPE process_virtual_memory_bytes gauge
+process_virtual_memory_bytes 2.40734208e+08
+# HELP process_resident_memory_bytes Resident memory size in bytes.
+# TYPE process_resident_memory_bytes gauge
+process_resident_memory_bytes 5.453824e+07
+# HELP process_start_time_seconds Start time of the process since unix epoch in seconds.
+# TYPE process_start_time_seconds gauge
+process_start_time_seconds 1.77385117665e+09
+# HELP process_cpu_seconds_total Total user and system CPU time spent in seconds.
+# TYPE process_cpu_seconds_total counter
+process_cpu_seconds_total 2.29
+# HELP process_open_fds Number of open file descriptors.
+# TYPE process_open_fds gauge
+process_open_fds 17.0
+# HELP process_max_fds Maximum number of open file descriptors.
+# TYPE process_max_fds gauge
+process_max_fds 1.048576e+06
+# HELP http_requests_total Total HTTP requests.
+# TYPE http_requests_total counter
+http_requests_total{endpoint="/metrics",method="GET",status_code="200"} 95.0
+http_requests_total{endpoint="/health",method="GET",status_code="200"} 21.0
+http_requests_total{endpoint="/",method="GET",status_code="200"} 20.0
+# HELP http_requests_created Total HTTP requests.
+# TYPE http_requests_created gauge
+http_requests_created{endpoint="/metrics",method="GET",status_code="200"} 1.7738511903158472e+09
+http_requests_created{endpoint="/health",method="GET",status_code="200"} 1.7738511967387257e+09
+http_requests_created{endpoint="/",method="GET",status_code="200"} 1.7738514373604448e+09
+# HELP http_request_duration_seconds HTTP request duration in seconds.
+# TYPE http_request_duration_seconds histogram
+http_request_duration_seconds_bucket{endpoint="/metrics",le="0.005",method="GET"} 95.0
+http_request_duration_seconds_bucket{endpoint="/metrics",le="0.01",method="GET"} 95.0
+http_request_duration_seconds_bucket{endpoint="/metrics",le="0.025",method="GET"} 95.0
+http_request_duration_seconds_bucket{endpoint="/metrics",le="0.05",method="GET"} 95.0
+http_request_duration_seconds_bucket{endpoint="/metrics",le="0.1",method="GET"} 95.0
+http_request_duration_seconds_bucket{endpoint="/metrics",le="0.25",method="GET"} 95.0
+http_request_duration_seconds_bucket{endpoint="/metrics",le="0.5",method="GET"} 95.0
+http_request_duration_seconds_bucket{endpoint="/metrics",le="1.0",method="GET"} 95.0
+http_request_duration_seconds_bucket{endpoint="/metrics",le="2.5",method="GET"} 95.0
+http_request_duration_seconds_bucket{endpoint="/metrics",le="5.0",method="GET"} 95.0
+http_request_duration_seconds_bucket{endpoint="/metrics",le="10.0",method="GET"} 95.0
+http_request_duration_seconds_bucket{endpoint="/metrics",le="+Inf",method="GET"} 95.0
+http_request_duration_seconds_count{endpoint="/metrics",method="GET"} 95.0
+http_request_duration_seconds_sum{endpoint="/metrics",method="GET"} 0.15411
+http_request_duration_seconds_bucket{endpoint="/health",le="0.005",method="GET"} 21.0
+http_request_duration_seconds_bucket{endpoint="/health",le="0.01",method="GET"} 21.0
+http_request_duration_seconds_bucket{endpoint="/health",le="0.025",method="GET"} 21.0
+http_request_duration_seconds_bucket{endpoint="/health",le="0.05",method="GET"} 21.0
+http_request_duration_seconds_bucket{endpoint="/health",le="0.1",method="GET"} 21.0
+http_request_duration_seconds_bucket{endpoint="/health",le="0.25",method="GET"} 21.0
+http_request_duration_seconds_bucket{endpoint="/health",le="0.5",method="GET"} 21.0
+http_request_duration_seconds_bucket{endpoint="/health",le="1.0",method="GET"} 21.0
+http_request_duration_seconds_bucket{endpoint="/health",le="2.5",method="GET"} 21.0
+http_request_duration_seconds_bucket{endpoint="/health",le="5.0",method="GET"} 21.0
+http_request_duration_seconds_bucket{endpoint="/health",le="10.0",method="GET"} 21.0
+http_request_duration_seconds_bucket{endpoint="/health",le="+Inf",method="GET"} 21.0
+http_request_duration_seconds_count{endpoint="/health",method="GET"} 21.0
+http_request_duration_seconds_sum{endpoint="/health",method="GET"} 0.01289
+http_request_duration_seconds_bucket{endpoint="/",le="0.005",method="GET"} 20.0
+http_request_duration_seconds_bucket{endpoint="/",le="0.01",method="GET"} 20.0
+http_request_duration_seconds_bucket{endpoint="/",le="0.025",method="GET"} 20.0
+http_request_duration_seconds_bucket{endpoint="/",le="0.05",method="GET"} 20.0
+http_request_duration_seconds_bucket{endpoint="/",le="0.1",method="GET"} 20.0
+http_request_duration_seconds_bucket{endpoint="/",le="0.25",method="GET"} 20.0
+http_request_duration_seconds_bucket{endpoint="/",le="0.5",method="GET"} 20.0
+http_request_duration_seconds_bucket{endpoint="/",le="1.0",method="GET"} 20.0
+http_request_duration_seconds_bucket{endpoint="/",le="2.5",method="GET"} 20.0
+http_request_duration_seconds_bucket{endpoint="/",le="5.0",method="GET"} 20.0
+http_request_duration_seconds_bucket{endpoint="/",le="10.0",method="GET"} 20.0
+http_request_duration_seconds_bucket{endpoint="/",le="+Inf",method="GET"} 20.0
+http_request_duration_seconds_count{endpoint="/",method="GET"} 20.0
+http_request_duration_seconds_sum{endpoint="/",method="GET"} 0.015419999999999998
+# HELP http_request_duration_seconds_created HTTP request duration in seconds.
+# TYPE http_request_duration_seconds_created gauge
+http_request_duration_seconds_created{endpoint="/metrics",method="GET"} 1.7738511903158724e+09
+http_request_duration_seconds_created{endpoint="/health",method="GET"} 1.7738511967387414e+09
+http_request_duration_seconds_created{endpoint="/",method="GET"} 1.7738514373604596e+09
+# HELP http_requests_in_progress HTTP requests currently being processed.
+# TYPE http_requests_in_progress gauge
+http_requests_in_progress{endpoint="/metrics",method="GET"} 1.0
+http_requests_in_progress{endpoint="/health",method="GET"} 0.0
+http_requests_in_progress{endpoint="/",method="GET"} 0.0
+# HELP devops_info_endpoint_calls_total Total calls to DevOps info service endpoints.
+# TYPE devops_info_endpoint_calls_total counter
+devops_info_endpoint_calls_total{endpoint="/metrics"} 96.0
+devops_info_endpoint_calls_total{endpoint="/health"} 21.0
+devops_info_endpoint_calls_total{endpoint="/"} 20.0
+# HELP devops_info_endpoint_calls_created Total calls to DevOps info service endpoints.
+# TYPE devops_info_endpoint_calls_created gauge
+devops_info_endpoint_calls_created{endpoint="/metrics"} 1.7738511903149436e+09
+devops_info_endpoint_calls_created{endpoint="/health"} 1.7738511967384806e+09
+devops_info_endpoint_calls_created{endpoint="/"} 1.7738514373600883e+09
+# HELP devops_info_system_collection_seconds Time spent collecting system information.
+# TYPE devops_info_system_collection_seconds histogram
+devops_info_system_collection_seconds_bucket{le="0.0005"} 20.0
+devops_info_system_collection_seconds_bucket{le="0.001"} 20.0
+devops_info_system_collection_seconds_bucket{le="0.0025"} 20.0
+devops_info_system_collection_seconds_bucket{le="0.005"} 20.0
+devops_info_system_collection_seconds_bucket{le="0.01"} 20.0
+devops_info_system_collection_seconds_bucket{le="0.025"} 20.0
+devops_info_system_collection_seconds_bucket{le="0.05"} 20.0
+devops_info_system_collection_seconds_bucket{le="+Inf"} 20.0
+devops_info_system_collection_seconds_count 20.0
+devops_info_system_collection_seconds_sum 0.0009410820000539388
+# HELP devops_info_system_collection_seconds_created Time spent collecting system information.
+# TYPE devops_info_system_collection_seconds_created gauge
+devops_info_system_collection_seconds_created 1.7738511776457825e+09
