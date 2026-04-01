@@ -1,0 +1,14 @@
+# Common VCS files
+.git/
+.gitignore
+
+# Editor files
+.idea/
+.vscode/
+*.swp
+*.tmp
+
+# OS files
+.DS_Store
+Thumbs.db
+

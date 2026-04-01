@@ -1,0 +1,25 @@
+Thank you for installing {{ .Chart.Name }}.
+
+Release name: {{ .Release.Name }}
+Namespace: {{ .Release.Namespace }}
+
+{{- if eq .Values.service.type "NodePort" }}
+The service uses NodePort.
+
+Check the service:
+  kubectl get svc -n {{ .Release.Namespace }} {{ include "app2.fullname" . }}
+
+For local access:
+  kubectl port-forward svc/{{ include "app2.fullname" . }} 18082:{{ .Values.service.port }} -n {{ .Release.Namespace }}
+  curl http://localhost:18082/health
+{{- else if eq .Values.service.type "LoadBalancer" }}
+The service uses LoadBalancer.
+
+Check the service:
+  kubectl get svc -n {{ .Release.Namespace }} {{ include "app2.fullname" . }}
+{{- else }}
+The service type is {{ .Values.service.type }}.
+
+Check the service:
+  kubectl get svc -n {{ .Release.Namespace }} {{ include "app2.fullname" . }}
+{{- end }}

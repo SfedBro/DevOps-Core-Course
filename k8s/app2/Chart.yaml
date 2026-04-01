@@ -1,0 +1,15 @@
+apiVersion: v2
+name: app2
+description: Helm chart for the DevOps Go service
+type: application
+version: 0.1.0
+appVersion: "latest"
+dependencies:
+  - name: common-lib
+    version: 0.1.0
+    repository: "file://../common-lib"
+keywords:
+  - go
+  - net-http
+  - devops
+  - kubernetes

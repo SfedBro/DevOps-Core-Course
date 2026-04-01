@@ -1,0 +1,307 @@
+C:\Users\Admin\Desktop\DevOps-Core-Course>helm install --dry-run --debug myapp k8s/mychart -f k8s/mychart/values-dev.yaml --namespace devops-helm --create-namespace
+level=WARN msg="--dry-run is deprecated and should be replaced with '--dry-run=client'"
+level=DEBUG msg="Original chart version" version=""
+level=DEBUG msg="Chart path" path=C:\Users\Admin\Desktop\DevOps-Core-Course\k8s\mychart
+level=DEBUG msg="number of dependencies in the chart" chart=mychart dependencies=0
+NAME: myapp
+LAST DEPLOYED: Wed Apr  1 22:13:34 2026
+NAMESPACE: devops-helm
+STATUS: pending-install
+REVISION: 1
+DESCRIPTION: Dry run complete
+TEST SUITE: None
+USER-SUPPLIED VALUES:
+env:
+- name: HOST
+  value: 0.0.0.0
+- name: PORT
+  value: "5000"
+- name: DEBUG
+  value: "true"
+image:
+  pullPolicy: Always
+  tag: latest
+livenessProbe:
+  initialDelaySeconds: 5
+  periodSeconds: 10
+readinessProbe:
+  initialDelaySeconds: 3
+  periodSeconds: 5
+replicaCount: 1
+resources:
+  limits:
+    cpu: 100m
+    memory: 128Mi
+  requests:
+    cpu: 50m
+    memory: 64Mi
+service:
+  nodePort: 30081
+  type: NodePort
+
+COMPUTED VALUES:
+containerPort: 5000
+env:
+- name: HOST
+  value: 0.0.0.0
+- name: PORT
+  value: "5000"
+- name: DEBUG
+  value: "true"
+fullnameOverride: ""
+hooks:
+  enabled: true
+  image:
+    pullPolicy: IfNotPresent
+    repository: busybox
+    tag: "1.36"
+  postInstall:
+    retries: 15
+    sleepSeconds: 2
+    smokeTestPath: /health
+    weight: 5
+  preInstall:
+    weight: -5
+image:
+  pullPolicy: Always
+  repository: sfedbro/app_python
+  tag: latest
+livenessProbe:
+  failureThreshold: 3
+  initialDelaySeconds: 5
+  path: /health
+  periodSeconds: 10
+  port: http
+  timeoutSeconds: 2
+nameOverride: ""
+readinessProbe:
+  failureThreshold: 3
+  initialDelaySeconds: 3
+  path: /health
+  periodSeconds: 5
+  port: http
+  timeoutSeconds: 2
+replicaCount: 1
+resources:
+  limits:
+    cpu: 100m
+    memory: 128Mi
+  requests:
+    cpu: 50m
+    memory: 64Mi
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: false
+  runAsGroup: 1000
+  runAsNonRoot: true
+  runAsUser: 1000
+service:
+  nodePort: 30081
+  port: 80
+  targetPort: 5000
+  type: NodePort
+
+HOOKS:
+---
+# Source: mychart/templates/hooks/post-install-job.yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: "myapp-mychart-post-install"
+  labels:
+    helm.sh/chart: mychart-0.1.0
+    app.kubernetes.io/name: mychart
+    app.kubernetes.io/instance: myapp
+    app.kubernetes.io/version: "latest"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: devops-core-course
+  annotations:
+    "helm.sh/hook": post-install
+    "helm.sh/hook-weight": "5"
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+spec:
+  template:
+    metadata:
+      name: "myapp-mychart-post-install"
+      labels:
+        app.kubernetes.io/name: mychart
+        app.kubernetes.io/instance: myapp
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: post-install-smoke-test
+          image: "busybox:1.36"
+          imagePullPolicy: IfNotPresent
+          command:
+            - sh
+            - -c
+            - |
+              set -eu
+              i=0
+              until wget -qO- "http://myapp-mychart:80/health" >/dev/null 2>&1; do
+                i=$((i+1))
+                if [ "$i" -ge 15 ]; then
+                  echo "Smoke test failed for myapp-mychart"
+                  exit 1
+                fi
+                echo "Waiting for application to become reachable..."
+                sleep 2
+              done
+              echo "Post-install smoke test passed for myapp-mychart"
+  backoffLimit: 0
+---
+# Source: mychart/templates/hooks/pre-install-job.yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: "myapp-mychart-pre-install"
+  labels:
+    helm.sh/chart: mychart-0.1.0
+    app.kubernetes.io/name: mychart
+    app.kubernetes.io/instance: myapp
+    app.kubernetes.io/version: "latest"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: devops-core-course
+  annotations:
+    "helm.sh/hook": pre-install
+    "helm.sh/hook-weight": "-5"
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+spec:
+  template:
+    metadata:
+      name: "myapp-mychart-pre-install"
+      labels:
+        app.kubernetes.io/name: mychart
+        app.kubernetes.io/instance: myapp
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: pre-install-check
+          image: "busybox:1.36"
+          imagePullPolicy: IfNotPresent
+          command:
+            - sh
+            - -c
+            - |
+              set -eu
+              [ -n "sfedbro/app_python" ]
+              [ -n "latest" ]
+              [ 1 -ge 1 ]
+              echo "Pre-install validation succeeded for myapp-mychart"
+  backoffLimit: 0
+MANIFEST:
+---
+# Source: mychart/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: myapp-mychart
+  labels:
+    helm.sh/chart: mychart-0.1.0
+    app.kubernetes.io/name: mychart
+    app.kubernetes.io/instance: myapp
+    app.kubernetes.io/version: "latest"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: devops-core-course
+spec:
+  type: NodePort
+  selector:
+    app.kubernetes.io/name: mychart
+    app.kubernetes.io/instance: myapp
+  ports:
+    - name: http
+      protocol: TCP
+      port: 80
+      targetPort: http
+      nodePort: 30081
+---
+# Source: mychart/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: myapp-mychart
+  labels:
+    helm.sh/chart: mychart-0.1.0
+    app.kubernetes.io/name: mychart
+    app.kubernetes.io/instance: myapp
+    app.kubernetes.io/version: "latest"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: devops-core-course
+spec:
+  replicas: 1
+  revisionHistoryLimit: 5
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: mychart
+      app.kubernetes.io/instance: myapp
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: mychart
+        app.kubernetes.io/instance: myapp
+        app.kubernetes.io/part-of: devops-core-course
+    spec:
+      terminationGracePeriodSeconds: 30
+      containers:
+        - name: mychart
+          image: "sfedbro/app_python:latest"
+          imagePullPolicy: Always
+          ports:
+            - name: http
+              containerPort: 5000
+              protocol: TCP
+          env:
+            - name: HOST
+              value: "0.0.0.0"
+            - name: PORT
+              value: "5000"
+            - name: DEBUG
+              value: "true"
+          resources:
+            limits:
+              cpu: 100m
+              memory: 128Mi
+            requests:
+              cpu: 50m
+              memory: 64Mi
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 3
+            periodSeconds: 5
+            timeoutSeconds: 2
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 2
+            failureThreshold: 3
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: false
+            runAsGroup: 1000
+            runAsNonRoot: true
+            runAsUser: 1000
+
+NOTES:
+Thank you for installing mychart.
+
+Release name: myapp
+Namespace: devops-helm
+The service uses NodePort.
+
+Check the service:
+  kubectl get svc -n devops-helm myapp-mychart
+
+For local access:
+  kubectl port-forward svc/myapp-mychart 18081:80 -n devops-helm
+  curl http://localhost:18081/health

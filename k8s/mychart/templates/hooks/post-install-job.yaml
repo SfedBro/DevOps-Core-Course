@@ -1,0 +1,42 @@
+{{- if .Values.hooks.enabled }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: "{{ include "mychart.fullname" . }}-post-install"
+  labels:
+    {{- include "mychart.labels" . | nindent 4 }}
+  annotations:
+    "helm.sh/hook": post-install
+    "helm.sh/hook-weight": "{{ .Values.hooks.postInstall.weight }}"
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+spec:
+  template:
+    metadata:
+      name: "{{ include "mychart.fullname" . }}-post-install"
+      labels:
+        {{- include "mychart.selectorLabels" . | nindent 8 }}
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: post-install-smoke-test
+          image: "{{ .Values.hooks.image.repository }}:{{ .Values.hooks.image.tag }}"
+          imagePullPolicy: {{ .Values.hooks.image.pullPolicy }}
+          command:
+            - sh
+            - -c
+            - |
+              set -eu
+              i=0
+              until wget -qO- "http://{{ include "mychart.fullname" . }}:{{ .Values.service.port }}{{ .Values.hooks.postInstall.smokeTestPath }}" >/dev/null 2>&1; do
+                i=$((i+1))
+                if [ "$i" -ge {{ .Values.hooks.postInstall.retries }} ]; then
+                  echo "Smoke test failed for {{ include "mychart.fullname" . }}"
+                  exit 1
+                fi
+                echo "Waiting for application to become reachable..."
+                sleep {{ .Values.hooks.postInstall.sleepSeconds }}
+              done
+              echo "Post-install smoke test passed for {{ include "mychart.fullname" . }}"
+  backoffLimit: 0
+{{- end }}
+
