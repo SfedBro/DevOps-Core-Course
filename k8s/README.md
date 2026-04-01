@@ -64,7 +64,7 @@ Current evidence already captured:
 - screenshot: [lab09_kubectl-get.png](./docs/screenshots/lab09_kubectl-get.png)
 - screenshot: [lab09_endpoints-respond.png](./docs/screenshots/lab09_endpoints-respond.png)
 - screenshot: [lab09_scalability.png](./docs/screenshots/lab09_scalability.png)
-- screenshot: [lab09_scale-rollback.png](./docs/screenshots/lab09_scale-rollback.png)
+- screenshot: [lab09_scale-rollback-2.png](./docs/screenshots/lab09_scale-rollback-2.png)
 
 Recommended commands to capture evidence:
 
@@ -78,6 +78,13 @@ kubectl logs deployment/devops-info-service -n devops-lab9
 ## Operations Performed
 
 ### 1. Create local cluster
+
+Chosen tool: `kind`
+
+Why:
+- works well with Docker Desktop on this machine
+- lightweight local cluster for iterative testing
+- good fit for local Kubernetes labs without needing a separate VM
 
 ```bash
 kind create cluster --name lab09 --image kindest/node:v1.34.0
