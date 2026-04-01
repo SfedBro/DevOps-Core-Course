@@ -1,0 +1,32 @@
+C:\Users\Admin\Desktop\DevOps-Core-Course>helm list -A
+NAME    NAMESPACE       REVISION        UPDATED                                 STATUS          CHART           APP VERSION
+myapp   devops-helm     4               2026-04-01 22:33:13.242959 +0300 MSK    deployed        mychart-0.1.0   latest
+mygoapp devops-helm     1               2026-04-01 22:33:18.5199403 +0300 MSK   deployed        app2-0.1.0      latest
+
+C:\Users\Admin\Desktop\DevOps-Core-Course>kubectl get all -n devops-helm
+NAME                                 READY   STATUS    RESTARTS   AGE
+pod/myapp-mychart-846db57b4b-9fv75   1/1     Running   0          92m
+pod/myapp-mychart-846db57b4b-rdzx9   1/1     Running   0          92m
+pod/myapp-mychart-846db57b4b-ttc6v   1/1     Running   0          92m
+pod/mygoapp-app2-6474d4bb47-g88qf    1/1     Running   0          56m
+
+NAME                    TYPE           CLUSTER-IP      EXTERNAL-IP   PORT(S)        AGE
+service/myapp-mychart   LoadBalancer   10.96.166.128   <pending>     80:30081/TCP   93m
+service/mygoapp-app2    NodePort       10.96.18.10     <none>        80:30082/TCP   56m
+
+NAME                            READY   UP-TO-DATE   AVAILABLE   AGE
+deployment.apps/myapp-mychart   3/3     3            3           93m
+deployment.apps/mygoapp-app2    1/1     1            1           56m
+
+NAME                                       DESIRED   CURRENT   READY   AGE
+replicaset.apps/myapp-mychart-587c786f4f   0         0         0       93m
+replicaset.apps/myapp-mychart-846db57b4b   3         3         3       92m
+replicaset.apps/mygoapp-app2-6474d4bb47    1         1         1       56m
+
+PS C:\Users\Admin> kubectl port-forward svc/mygoapp-app2 18082:80 -n devops-helm
+Forwarding from 127.0.0.1:18082 -> 8080
+Forwarding from [::1]:18082 -> 8080
+Handling connection for 18082
+
+PS C:\Users\Admin> curl http://localhost:18082/health
+{"status":"healthy","timestamp":"2026-04-01T20:30:56Z","uptime_seconds":3445}

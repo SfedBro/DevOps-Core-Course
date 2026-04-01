@@ -1,0 +1,6 @@
+apiVersion: v2
+name: common-lib
+description: Shared Helm helper templates for the DevOps course applications
+type: library
+version: 0.1.0
+appVersion: "1.0"
