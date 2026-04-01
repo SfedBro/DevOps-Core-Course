@@ -233,8 +233,8 @@ kubectl get all -n devops-helm
 
 Observed prod-style upgrade state:
 
-- release revision became `2`
-- previous revision marked `superseded`
+- release revision increased after upgrade
+- previous revision was marked `superseded`
 - Deployment updated to 3 replicas
 - Service type changed to `LoadBalancer`
 - in `kind`, external IP remains `<pending>`, which is expected for local clusters without a real cloud load balancer
