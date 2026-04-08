@@ -1,0 +1,263 @@
+PS C:\Users\Admin\Desktop\DevOps-Core-Course> kubectl create secret generic app-credentials --from-literal=username=admin --from-literal=password=secret123 -n devops-helm
+error: failed to create secret secrets "app-credentials" already exists
+PS C:\Users\Admin\Desktop\DevOps-Core-Course> kubectl get secret app-credentials -n devops-helm -o yaml
+apiVersion: v1
+data:
+  password: c2VjcmV0MTIz
+  username: YWRtaW4=
+kind: Secret
+metadata:
+  creationTimestamp: "2026-04-08T19:23:57Z"
+  name: app-credentials
+  namespace: devops-helm
+  resourceVersion: "45450"
+  uid: 975290f0-18d7-427e-b5e3-28c971c6ce26
+type: Opaque
+PS C:\Users\Admin\Desktop\DevOps-Core-Course> kubectl get secret app-credentials -n devops-helm -o jsonpath="{.data.username}"
+YWRtaW4=
+PS C:\Users\Admin\Desktop\DevOps-Core-Course> kubectl get secret app-credentials -n devops-helm -o jsonpath="{.data.password}"
+c2VjcmV0MTIz
+
+PS C:\Users\Admin\Desktop\DevOps-Core-Course> [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String("YWRtaW4="))
+admin
+PS C:\Users\Admin\Desktop\DevOps-Core-Course> [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String("c2VjcmV0MTIz"))
+secret123
+
+PS C:\Users\Admin\Desktop\DevOps-Core-Course> helm upgrade --install myapp-secret k8s/mychart -f k8s/mychart/values-dev.yaml --namespace devops-helm --set service.type=ClusterIP --set service.nodePort=null --set secrets.data.username=admin --set secrets.data.password=secret123 --wait --wait-for-jobs
+Release "myapp-secret" has been upgraded. Happy Helming!
+NAME: myapp-secret
+LAST DEPLOYED: Wed Apr  8 23:39:41 2026
+NAMESPACE: devops-helm
+STATUS: deployed
+REVISION: 2
+DESCRIPTION: Upgrade complete
+TEST SUITE: None
+NOTES:
+Thank you for installing mychart.
+
+Release name: myapp-secret
+Namespace: devops-helm
+The service type is ClusterIP.
+
+Check the service:
+  kubectl get svc -n devops-helm myapp-secret-mychart
+PS C:\Users\Admin\Desktop\DevOps-Core-Course> kubectl get secret myapp-secret-mychart-secret -n devops-helm -o yaml
+apiVersion: v1
+data:
+  password: c2VjcmV0MTIz
+  username: YWRtaW4=
+kind: Secret
+metadata:
+  annotations:
+    meta.helm.sh/release-name: myapp-secret
+    meta.helm.sh/release-namespace: devops-helm
+  creationTimestamp: "2026-04-08T19:28:50Z"
+  labels:
+    app.kubernetes.io/instance: myapp-secret
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: mychart
+    app.kubernetes.io/part-of: devops-core-course
+    app.kubernetes.io/version: latest
+    helm.sh/chart: mychart-0.1.0
+  name: myapp-secret-mychart-secret
+  namespace: devops-helm
+  resourceVersion: "46154"
+  uid: 94579c10-6e03-4fdb-af11-c59fdebd4bea
+type: Opaque
+PS C:\Users\Admin\Desktop\DevOps-Core-Course> kubectl exec -n devops-helm deploy/myapp-secret-mychart -- printenv
+PATH=/usr/local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+HOSTNAME=myapp-secret-mychart-547fd8856b-x94x5
+LANG=C.UTF-8
+GPG_KEY=7169605F62C751356D054A26A821E680E5FA6305
+PYTHON_VERSION=3.12.12
+PYTHON_SHA256=fb85a13414b028c49ba18bbd523c2d055a30b56b18b92ce454ea2c51edc656c4
+password=secret123
+username=admin
+HOST=0.0.0.0
+PORT=5000
+DEBUG=true
+APP_ENV=dev
+MYAPP_SECRET_MYCHART_SERVICE_PORT_HTTP=80
+MYAPP_SECRET_MYCHART_PORT_80_TCP_ADDR=10.96.53.128
+MYGOAPP_APP2_SERVICE_PORT_HTTP=80
+MYAPP_SECRET_MYCHART_SERVICE_HOST=10.96.53.128
+MYAPP_SECRET_MYCHART_PORT_80_TCP_PORT=80
+KUBERNETES_SERVICE_HOST=10.96.0.1
+MYAPP_MYCHART_PORT_80_TCP_PROTO=tcp
+MYGOAPP_APP2_SERVICE_HOST=10.96.18.10
+MYAPP_SECRET_MYCHART_SERVICE_PORT=80
+MYAPP_MYCHART_SERVICE_HOST=10.96.166.128
+MYAPP_MYCHART_PORT_80_TCP_ADDR=10.96.166.128
+KUBERNETES_PORT_443_TCP=tcp://10.96.0.1:443
+KUBERNETES_PORT_443_TCP_PORT=443
+MYAPP_MYCHART_PORT_80_TCP=tcp://10.96.166.128:80
+MYAPP_MYCHART_PORT_80_TCP_PORT=80
+MYAPP_SECRET_MYCHART_PORT=tcp://10.96.53.128:80
+MYAPP_MYCHART_PORT=tcp://10.96.166.128:80
+MYGOAPP_APP2_SERVICE_PORT=80
+MYGOAPP_APP2_PORT_80_TCP_PROTO=tcp
+MYAPP_SECRET_MYCHART_PORT_80_TCP_PROTO=tcp
+KUBERNETES_PORT=tcp://10.96.0.1:443
+KUBERNETES_PORT_443_TCP_ADDR=10.96.0.1
+MYGOAPP_APP2_PORT=tcp://10.96.18.10:80
+MYGOAPP_APP2_PORT_80_TCP_PORT=80
+MYGOAPP_APP2_PORT_80_TCP_ADDR=10.96.18.10
+KUBERNETES_SERVICE_PORT=443
+KUBERNETES_SERVICE_PORT_HTTPS=443
+KUBERNETES_PORT_443_TCP_PROTO=tcp
+MYAPP_MYCHART_SERVICE_PORT_HTTP=80
+MYAPP_SECRET_MYCHART_PORT_80_TCP=tcp://10.96.53.128:80
+MYAPP_MYCHART_SERVICE_PORT=80
+MYGOAPP_APP2_PORT_80_TCP=tcp://10.96.18.10:80
+HOME=/home/appuser
+PS C:\Users\Admin\Desktop\DevOps-Core-Course> kubectl describe pod -n devops-helm myapp-secret-mychart-547fd8856b-x94x5
+Name:             myapp-secret-mychart-547fd8856b-x94x5
+Namespace:        devops-helm
+Priority:         0
+Service Account:  myapp-secret-mychart
+Node:             lab09-control-plane/172.19.0.
+Start Time:       Wed, 08 Apr 2026 22:28:50 +0300
+Labels:           app.kubernetes.io/instance=myapp-secret
+                  app.kubernetes.io/name=mychart
+                  app.kubernetes.io/part-of=devops-core-course
+                  pod-template-hash=547fd8856b
+Annotations:      <none>
+Status:           Running
+IP:               10.244.0.21
+IPs:
+  IP:           10.244.0.21
+Controlled By:  ReplicaSet/myapp-secret-mychart-547fd8856b
+Containers:
+  mychart:
+    Container ID:   containerd://36c58cd3b1ff2c07dbc75030a2efc8b0b1487a70040d890766178aefbee8b00e
+    Image:          sfedbro/app_python:latest
+    Image ID:       docker.io/sfedbro/app_python@sha256:bf24b14e0d533363f404c9d517f4e4137ba506ff065026715a0a3dcad9311c34
+    Port:           5000/TCP (http)
+    Host Port:      0/TCP (http)
+    State:          Running
+      Started:      Wed, 08 Apr 2026 22:28:53 +0300
+    Ready:          True
+    Restart Count:  0
+    Limits:
+      cpu:     100m
+      memory:  128Mi
+    Requests:
+      cpu:      50m
+      memory:   64Mi
+    Liveness:   http-get http://:http/health delay=5s timeout=2s period=10s #success=1 #failure=3
+    Readiness:  http-get http://:http/health delay=3s timeout=2s period=5s #success=1 #failure=3
+    Environment Variables from:
+      myapp-secret-mychart-secret  Secret  Optional: false
+    Environment:
+      HOST:     0.0.0.0
+      PORT:     5000
+      DEBUG:    true
+      APP_ENV:  dev
+    Mounts:
+      /var/run/secrets/kubernetes.io/serviceaccount from kube-api-access-hlvgh (ro)
+Conditions:
+  Type                        Status
+  PodReadyToStartContainers   True
+  Initialized                 True
+  Ready                       True
+  ContainersReady             True
+  PodScheduled                True
+Volumes:
+  kube-api-access-hlvgh:
+    Type:                    Projected (a volume that contains injected data from multiple sources)
+    TokenExpirationSeconds:  3607
+    ConfigMapName:           kube-root-ca.crt
+    Optional:                false
+    DownwardAPI:             true
+QoS Class:                   Burstable
+Node-Selectors:              <none>
+Tolerations:                 node.kubernetes.io/not-ready:NoExecute op=Exists for 300s
+                             node.kubernetes.io/unreachable:NoExecute op=Exists for 300s
+Events:                      <none>
+
+PS C:\Users\Admin\Desktop\DevOps-Core-Course> helm repo add hashicorp https://helm.releases.hashicorp.com
+"hashicorp" already exists with the same configuration, skipping
+PS C:\Users\Admin\Desktop\DevOps-Core-Course> helm repo update
+Hang tight while we grab the latest from your chart repositories...
+...Successfully got an update from the "hashicorp" chart repository
+...Successfully got an update from the "prometheus-community" chart repository
+Update Complete. ⎈Happy Helming!⎈
+PS C:\Users\Admin\Desktop\DevOps-Core-Course> helm install vault hashicorp/vault --namespace vault --create-namespace --set "server.dev.enabled=true" --set "server.dev.devRootToken=root" --set "injector.enabled=true" --wait
+level=ERROR msg="release name check failed" error="cannot reuse a name that is still in use"
+Error: INSTALLATION FAILED: release name check failed: cannot reuse a name that is still in use
+PS C:\Users\Admin\Desktop\DevOps-Core-Course> kubectl get pods -n vault
+NAME                                    READY   STATUS    RESTARTS   AGE
+vault-0                                 1/1     Running   0          77m
+vault-agent-injector-5b7dd85f5c-zc7rs   1/1     Running   0          77m
+
+PS C:\Users\Admin\Desktop\DevOps-Core-Course> kubectl exec -it -n vault vault-0 -- sh
+/ $ export VAULT_ADDR='http://127.0.0.1:8200'
+/ $ export VAULT_TOKEN='root'
+/ $ vault kv put secret/myapp/config username="admin" password="secret123"
+====== Secret Path ======
+secret/data/myapp/config
+
+======= Metadata =======
+Key                Value
+---                -----
+created_time       2026-04-08T20:43:10.255742202Z
+custom_metadata    <nil>
+deletion_time      n/a
+destroyed          false
+version            2
+/ $ vault auth enable kubernetes
+Error enabling kubernetes auth: Error making API request.
+
+URL: POST http://127.0.0.1:8200/v1/sys/auth/kubernetes
+Code: 400. Errors:
+
+* path is already in use at kubernetes/
+/ $ vault write auth/kubernetes/config kubernetes_host="https://$KUBERNETES_PORT_443_TCP_ADDR:443" token_reviewer_jwt="$
+(cat /var/run/secrets/kubernetes.io/serviceaccount/token)" kubernetes_ca_cert=@/var/run/secrets/kubernetes.io/serviceacc
+ount/ca.crt disable_iss_validation=true
+Success! Data written to: auth/kubernetes/config
+/ $ cat >/tmp/myapp-policy.hcl <<'EOF'
+> path "secret/data/myapp/config" {
+>   capabilities = ["read"]
+> }
+> EOF
+/ $
+/ $ vault policy write myapp /tmp/myapp-policy.hcl
+Success! Uploaded policy: myapp
+/ $ vault write auth/kubernetes/role/myapp \
+>   bound_service_account_names="myapp-mychart" \
+>   bound_service_account_namespaces="devops-helm" \
+>   policies="myapp" \
+>   ttl="1h"
+WARNING! The following warnings were returned from Vault:
+
+  * Role myapp does not have an audience configured. While audiences are
+  not required, consider specifying one if your use case would benefit from
+  additional JWT claim verification.
+
+/ $ exit
+PS C:\Users\Admin\Desktop\DevOps-Core-Course> helm upgrade --install myapp k8s/mychart -f k8s/mychart/values-prod.yaml -f k8s/mychart/values-vault.yaml --namespace devops-helm --wait --wait-for-jobs
+Release "myapp" has been upgraded. Happy Helming!
+NAME: myapp
+LAST DEPLOYED: Wed Apr  8 23:44:44 2026
+NAMESPACE: devops-helm
+STATUS: deployed
+REVISION: 7
+DESCRIPTION: Upgrade complete
+TEST SUITE: None
+NOTES:
+Thank you for installing mychart.
+
+Release name: myapp
+Namespace: devops-helm
+The service uses LoadBalancer.
+
+Check the service:
+  kubectl get svc -n devops-helm myapp-mychart
+PS C:\Users\Admin\Desktop\DevOps-Core-Course> kubectl get pods -n devops-helm
+NAME                                    READY   STATUS    RESTARTS      AGE
+myapp-mychart-595bb97cd9-l8rfr          2/2     Running   0             77m
+myapp-mychart-595bb97cd9-vmlbf          2/2     Running   0             77m
+myapp-mychart-595bb97cd9-wngq2          2/2     Running   0             77m
+myapp-secret-mychart-547fd8856b-x94x5   1/1     Running   0             75m
+mygoapp-app2-6474d4bb47-g88qf           1/1     Running   1 (82m ago)   7d1h

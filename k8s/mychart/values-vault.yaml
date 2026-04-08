@@ -1,0 +1,16 @@
+secrets:
+  enabled: false
+
+vault:
+  enabled: true
+  role: "myapp"
+  secretPath: "secret/data/myapp/config"
+  injectFilename: "config"
+  authPath: "auth/kubernetes"
+  agent:
+    inject: true
+    prePopulateOnly: false
+    template:
+      enabled: true
+      filename: "config.env"
+      path: "secret/data/myapp/config"

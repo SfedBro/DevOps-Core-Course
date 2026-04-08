@@ -23,6 +23,33 @@ env:
     value: "5000"
   - name: DEBUG
     value: "false"
+  - name: APP_ENV
+    value: "dev"
+
+serviceAccount:
+  create: true
+  name: ""
+
+secrets:
+  enabled: true
+  nameOverride: ""
+  data:
+    username: "change-me"
+    password: "change-me"
+
+vault:
+  enabled: false
+  role: "myapp"
+  secretPath: "secret/data/myapp/config"
+  injectFilename: "config"
+  authPath: "auth/kubernetes"
+  agent:
+    inject: true
+    prePopulateOnly: false
+    template:
+      enabled: true
+      filename: "config.env"
+      path: "secret/data/myapp/config"
 
 resources:
   requests:

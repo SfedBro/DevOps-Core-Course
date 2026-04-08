@@ -20,7 +20,12 @@ spec:
       labels:
         {{- include "mychart.selectorLabels" . | nindent 8 }}
         app.kubernetes.io/part-of: devops-core-course
+      {{- if .Values.vault.enabled }}
+      annotations:
+        {{- include "mychart.vaultAnnotations" . | nindent 8 }}
+      {{- end }}
     spec:
+      serviceAccountName: {{ include "mychart.serviceAccountName" . }}
       terminationGracePeriodSeconds: 30
       containers:
         - name: {{ include "mychart.name" . }}
@@ -31,10 +36,12 @@ spec:
               containerPort: {{ .Values.containerPort }}
               protocol: TCP
           env:
-            {{- range .Values.env }}
-            - name: {{ .name }}
-              value: {{ .value | quote }}
-            {{- end }}
+            {{- include "mychart.envVars" . | nindent 12 }}
+          {{- if .Values.secrets.enabled }}
+          envFrom:
+            - secretRef:
+                name: {{ include "mychart.secretName" . }}
+          {{- end }}
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
           readinessProbe:
