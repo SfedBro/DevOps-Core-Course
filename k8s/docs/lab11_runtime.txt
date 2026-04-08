@@ -1,0 +1,301 @@
+=== kubectl get secret app-credentials -n devops-helm -o yaml ===
+apiVersion: v1
+data:
+  password: c2VjcmV0MTIz
+  username: YWRtaW4=
+kind: Secret
+metadata:
+  creationTimestamp: "2026-04-08T19:23:57Z"
+  name: app-credentials
+  namespace: devops-helm
+  resourceVersion: "45450"
+  uid: 975290f0-18d7-427e-b5e3-28c971c6ce26
+type: Opaque
+
+=== decoded secret values ===
+username_b64=YWRtaW4=
+username_plain=admin
+password_b64=c2VjcmV0MTIz
+password_plain=secret123
+
+=== kubectl get secret myapp-secret-mychart-secret -n devops-helm -o yaml ===
+apiVersion: v1
+data:
+  password: c2VjcmV0MTIz
+  username: YWRtaW4=
+kind: Secret
+metadata:
+  annotations:
+    meta.helm.sh/release-name: myapp-secret
+    meta.helm.sh/release-namespace: devops-helm
+  creationTimestamp: "2026-04-08T19:28:50Z"
+  labels:
+    app.kubernetes.io/instance: myapp-secret
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: mychart
+    app.kubernetes.io/part-of: devops-core-course
+    app.kubernetes.io/version: latest
+    helm.sh/chart: mychart-0.1.0
+  name: myapp-secret-mychart-secret
+  namespace: devops-helm
+  resourceVersion: "46154"
+  uid: 94579c10-6e03-4fdb-af11-c59fdebd4bea
+type: Opaque
+
+=== kubectl exec -n devops-helm deploy/myapp-secret-mychart -- printenv | Select-String username,password,APP_ENV ===
+
+password=secret123
+username=admin
+APP_ENV=dev
+
+=== kubectl describe pod myapp-secret-mychart-547fd8856b-x94x5 -n devops-helm ===
+Name:             myapp-secret-mychart-547fd8856b-x94x5
+Namespace:        devops-helm
+Priority:         0
+Service Account:  myapp-secret-mychart
+Node:             lab09-control-plane/172.19.0.2
+Start Time:       Wed, 08 Apr 2026 22:28:50 +0300
+Labels:           app.kubernetes.io/instance=myapp-secret
+                  app.kubernetes.io/name=mychart
+                  app.kubernetes.io/part-of=devops-core-course
+                  pod-template-hash=547fd8856b
+Annotations:      <none>
+Status:           Running
+IP:               10.244.0.21
+IPs:
+  IP:           10.244.0.21
+Controlled By:  ReplicaSet/myapp-secret-mychart-547fd8856b
+Containers:
+  mychart:
+    Container ID:   containerd://36c58cd3b1ff2c07dbc75030a2efc8b0b1487a70040d890766178aefbee8b00e
+    Image:          sfedbro/app_python:latest
+    Image ID:       docker.io/sfedbro/app_python@sha256:bf24b14e0d533363f404c9d517f4e4137ba506ff065026715a0a3dcad9311c34
+    Port:           5000/TCP (http)
+    Host Port:      0/TCP (http)
+    State:          Running
+      Started:      Wed, 08 Apr 2026 22:28:53 +0300
+    Ready:          True
+    Restart Count:  0
+    Limits:
+      cpu:     100m
+      memory:  128Mi
+    Requests:
+      cpu:      50m
+      memory:   64Mi
+    Liveness:   http-get http://:http/health delay=5s timeout=2s period=10s #success=1 #failure=3
+    Readiness:  http-get http://:http/health delay=3s timeout=2s period=5s #success=1 #failure=3
+    Environment Variables from:
+      myapp-secret-mychart-secret  Secret  Optional: false
+    Environment:
+      HOST:     0.0.0.0
+      PORT:     5000
+      DEBUG:    true
+      APP_ENV:  dev
+    Mounts:
+      /var/run/secrets/kubernetes.io/serviceaccount from kube-api-access-hlvgh (ro)
+Conditions:
+  Type                        Status
+  PodReadyToStartContainers   True 
+  Initialized                 True 
+  Ready                       True 
+  ContainersReady             True 
+  PodScheduled                True 
+Volumes:
+  kube-api-access-hlvgh:
+    Type:                    Projected (a volume that contains injected data from multiple sources)
+    TokenExpirationSeconds:  3607
+    ConfigMapName:           kube-root-ca.crt
+    Optional:                false
+    DownwardAPI:             true
+QoS Class:                   Burstable
+Node-Selectors:              <none>
+Tolerations:                 node.kubernetes.io/not-ready:NoExecute op=Exists for 300s
+                             node.kubernetes.io/unreachable:NoExecute op=Exists for 300s
+Events:
+  Type     Reason     Age   From               Message
+  ----     ------     ----  ----               -------
+  Normal   Scheduled  38s   default-scheduler  Successfully assigned devops-helm/myapp-secret-mychart-547fd8856b-x94x5 to lab09-control-plane
+  Normal   Pulling    38s   kubelet            Pulling image "sfedbro/app_python:latest"
+  Normal   Pulled     37s   kubelet            Successfully pulled image "sfedbro/app_python:latest" in 1.864s (1.864s including waiting). Image size: 62870492 bytes.
+  Normal   Created    37s   kubelet            Created container: mychart
+  Normal   Started    36s   kubelet            Started container mychart
+  Warning  Unhealthy  29s   kubelet            Readiness probe failed: Get "http://10.244.0.21:5000/health": dial tcp 10.244.0.21:5000: connect: connection refused
+
+=== kubectl get pods -n vault ===
+NAME                                    READY   STATUS    RESTARTS   AGE
+vault-0                                 1/1     Running   0          4m9s
+vault-agent-injector-5b7dd85f5c-zc7rs   1/1     Running   0          4m9s
+
+=== kubectl describe pod myapp-mychart-595bb97cd9-l8rfr -n devops-helm ===
+Name:             myapp-mychart-595bb97cd9-l8rfr
+Namespace:        devops-helm
+Priority:         0
+Service Account:  myapp-mychart
+Node:             lab09-control-plane/172.19.0.2
+Start Time:       Wed, 08 Apr 2026 22:26:53 +0300
+Labels:           app.kubernetes.io/instance=myapp
+                  app.kubernetes.io/name=mychart
+                  app.kubernetes.io/part-of=devops-core-course
+                  pod-template-hash=595bb97cd9
+Annotations:      vault.hashicorp.com/agent-inject: true
+                  vault.hashicorp.com/agent-inject-secret-config: secret/data/myapp/config
+                  vault.hashicorp.com/agent-inject-status: injected
+                  vault.hashicorp.com/agent-inject-template-config.env:
+                    {{- with secret "secret/data/myapp/config" -}}
+                    USERNAME={{ .Data.data.username }}
+                    PASSWORD={{ .Data.data.password }}
+                    {{- end }}
+                  vault.hashicorp.com/auth-path: auth/kubernetes
+                  vault.hashicorp.com/role: myapp
+Status:           Running
+IP:               10.244.0.17
+IPs:
+  IP:           10.244.0.17
+Controlled By:  ReplicaSet/myapp-mychart-595bb97cd9
+Init Containers:
+  vault-agent-init:
+    Container ID:  containerd://9328e80983f999cfdbd5292f73b36c963e7fb302c376728d42bf280405093b73
+    Image:         hashicorp/vault:1.21.2
+    Image ID:      docker.io/hashicorp/vault@sha256:eb0ba6836e8d4699b7a1e8ca70d8433f7b87dcd067e6d82dff237d3ed2600ea0
+    Port:          <none>
+    Host Port:     <none>
+    Command:
+      /bin/sh
+      -ec
+    Args:
+      echo ${VAULT_CONFIG?} | base64 -d > /home/vault/config.json && vault agent -config=/home/vault/config.json
+    State:          Terminated
+      Reason:       Completed
+      Exit Code:    0
+      Started:      Wed, 08 Apr 2026 22:26:54 +0300
+      Finished:     Wed, 08 Apr 2026 22:26:54 +0300
+    Ready:          True
+    Restart Count:  0
+    Limits:
+      cpu:     500m
+      memory:  128Mi
+    Requests:
+      cpu:     250m
+      memory:  64Mi
+    Environment:
+      NAMESPACE:         devops-helm (v1:metadata.namespace)
+      HOST_IP:            (v1:status.hostIP)
+      POD_IP:             (v1:status.podIP)
+      VAULT_LOG_LEVEL:   info
+      VAULT_LOG_FORMAT:  standard
+      VAULT_CONFIG:      eyJhdXRvX2F1dGgiOnsibWV0aG9kIjp7InR5cGUiOiJrdWJlcm5ldGVzIiwibW91bnRfcGF0aCI6ImF1dGgva3ViZXJuZXRlcyIsImNvbmZpZyI6eyJyb2xlIjoibXlhcHAiLCJ0b2tlbl9wYXRoIjoiL3Zhci9ydW4vc2VjcmV0cy9rdWJlcm5ldGVzLmlvL3NlcnZpY2VhY2NvdW50L3Rva2VuIn19LCJzaW5rIjpbeyJ0eXBlIjoiZmlsZSIsImNvbmZpZyI6eyJwYXRoIjoiL2hvbWUvdmF1bHQvLnZhdWx0LXRva2VuIn19XX0sImV4aXRfYWZ0ZXJfYXV0aCI6dHJ1ZSwicGlkX2ZpbGUiOiIvaG9tZS92YXVsdC8ucGlkIiwidmF1bHQiOnsiYWRkcmVzcyI6Imh0dHA6Ly92YXVsdC52YXVsdC5zdmM6ODIwMCJ9LCJ0ZW1wbGF0ZSI6W3siZGVzdGluYXRpb24iOiIvdmF1bHQvc2VjcmV0cy9jb25maWciLCJjb250ZW50cyI6Int7IHdpdGggc2VjcmV0IFwic2VjcmV0L2RhdGEvbXlhcHAvY29uZmlnXCIgfX17eyByYW5nZSAkaywgJHYgOj0gLkRhdGEgfX17eyAkayB9fToge3sgJHYgfX1cbnt7IGVuZCB9fXt7IGVuZCB9fSIsImxlZnRfZGVsaW1pdGVyIjoie3siLCJyaWdodF9kZWxpbWl0ZXIiOiJ9fSJ9LHsiZGVzdGluYXRpb24iOiIvdmF1bHQvc2VjcmV0cy9jb25maWcuZW52IiwiY29udGVudHMiOiJ7ey0gd2l0aCBzZWNyZXQgXCJzZWNyZXQvZGF0YS9teWFwcC9jb25maWdcIiAtfX1cblVTRVJOQU1FPXt7IC5EYXRhLmRhdGEudXNlcm5hbWUgfX1cblBBU1NXT1JEPXt7IC5EYXRhLmRhdGEucGFzc3dvcmQgfX1cbnt7LSBlbmQgfX1cbiIsImxlZnRfZGVsaW1pdGVyIjoie3siLCJyaWdodF9kZWxpbWl0ZXIiOiJ9fSJ9XSwidGVtcGxhdGVfY29uZmlnIjp7ImV4aXRfb25fcmV0cnlfZmFpbHVyZSI6dHJ1ZX19
+    Mounts:
+      /home/vault from home-init (rw)
+      /var/run/secrets/kubernetes.io/serviceaccount from kube-api-access-jx76b (ro)
+      /vault/secrets from vault-secrets (rw)
+Containers:
+  mychart:
+    Container ID:   containerd://404d877d03447cd3f93bd1cc7f1e2b470aeb182fa930879769582d0a6ccb716f
+    Image:          sfedbro/app_python:latest
+    Image ID:       docker.io/sfedbro/app_python@sha256:bf24b14e0d533363f404c9d517f4e4137ba506ff065026715a0a3dcad9311c34
+    Port:           5000/TCP (http)
+    Host Port:      0/TCP (http)
+    State:          Running
+      Started:      Wed, 08 Apr 2026 22:26:55 +0300
+    Ready:          True
+    Restart Count:  0
+    Limits:
+      cpu:     500m
+      memory:  512Mi
+    Requests:
+      cpu:      200m
+      memory:   256Mi
+    Liveness:   http-get http://:http/health delay=20s timeout=2s period=5s #success=1 #failure=3
+    Readiness:  http-get http://:http/health delay=10s timeout=2s period=3s #success=1 #failure=3
+    Environment:
+      HOST:     0.0.0.0
+      PORT:     5000
+      DEBUG:    false
+      APP_ENV:  prod
+    Mounts:
+      /var/run/secrets/kubernetes.io/serviceaccount from kube-api-access-jx76b (ro)
+      /vault/secrets from vault-secrets (rw)
+  vault-agent:
+    Container ID:  containerd://94300a8e09d3493e2e9f51fa923f0eea5b8d8a3c8921c947fd4730904301e061
+    Image:         hashicorp/vault:1.21.2
+    Image ID:      docker.io/hashicorp/vault@sha256:eb0ba6836e8d4699b7a1e8ca70d8433f7b87dcd067e6d82dff237d3ed2600ea0
+    Port:          <none>
+    Host Port:     <none>
+    Command:
+      /bin/sh
+      -ec
+    Args:
+      echo ${VAULT_CONFIG?} | base64 -d > /home/vault/config.json && vault agent -config=/home/vault/config.json
+    State:          Running
+      Started:      Wed, 08 Apr 2026 22:26:55 +0300
+    Ready:          True
+    Restart Count:  0
+    Limits:
+      cpu:     500m
+      memory:  128Mi
+    Requests:
+      cpu:     250m
+      memory:  64Mi
+    Environment:
+      NAMESPACE:         devops-helm (v1:metadata.namespace)
+      HOST_IP:            (v1:status.hostIP)
+      POD_IP:             (v1:status.podIP)
+      VAULT_LOG_LEVEL:   info
+      VAULT_LOG_FORMAT:  standard
+      VAULT_CONFIG:      eyJhdXRvX2F1dGgiOnsibWV0aG9kIjp7InR5cGUiOiJrdWJlcm5ldGVzIiwibW91bnRfcGF0aCI6ImF1dGgva3ViZXJuZXRlcyIsImNvbmZpZyI6eyJyb2xlIjoibXlhcHAiLCJ0b2tlbl9wYXRoIjoiL3Zhci9ydW4vc2VjcmV0cy9rdWJlcm5ldGVzLmlvL3NlcnZpY2VhY2NvdW50L3Rva2VuIn19LCJzaW5rIjpbeyJ0eXBlIjoiZmlsZSIsImNvbmZpZyI6eyJwYXRoIjoiL2hvbWUvdmF1bHQvLnZhdWx0LXRva2VuIn19XX0sImV4aXRfYWZ0ZXJfYXV0aCI6ZmFsc2UsInBpZF9maWxlIjoiL2hvbWUvdmF1bHQvLnBpZCIsInZhdWx0Ijp7ImFkZHJlc3MiOiJodHRwOi8vdmF1bHQudmF1bHQuc3ZjOjgyMDAifSwidGVtcGxhdGUiOlt7ImRlc3RpbmF0aW9uIjoiL3ZhdWx0L3NlY3JldHMvY29uZmlnIiwiY29udGVudHMiOiJ7eyB3aXRoIHNlY3JldCBcInNlY3JldC9kYXRhL215YXBwL2NvbmZpZ1wiIH19e3sgcmFuZ2UgJGssICR2IDo9IC5EYXRhIH19e3sgJGsgfX06IHt7ICR2IH19XG57eyBlbmQgfX17eyBlbmQgfX0iLCJsZWZ0X2RlbGltaXRlciI6Int7IiwicmlnaHRfZGVsaW1pdGVyIjoifX0ifSx7ImRlc3RpbmF0aW9uIjoiL3ZhdWx0L3NlY3JldHMvY29uZmlnLmVudiIsImNvbnRlbnRzIjoie3stIHdpdGggc2VjcmV0IFwic2VjcmV0L2RhdGEvbXlhcHAvY29uZmlnXCIgLX19XG5VU0VSTkFNRT17eyAuRGF0YS5kYXRhLnVzZXJuYW1lIH19XG5QQVNTV09SRD17eyAuRGF0YS5kYXRhLnBhc3N3b3JkIH19XG57ey0gZW5kIH19XG4iLCJsZWZ0X2RlbGltaXRlciI6Int7IiwicmlnaHRfZGVsaW1pdGVyIjoifX0ifV0sInRlbXBsYXRlX2NvbmZpZyI6eyJleGl0X29uX3JldHJ5X2ZhaWx1cmUiOnRydWV9fQ==
+    Mounts:
+      /home/vault from home-sidecar (rw)
+      /var/run/secrets/kubernetes.io/serviceaccount from kube-api-access-jx76b (ro)
+      /vault/secrets from vault-secrets (rw)
+Conditions:
+  Type                        Status
+  PodReadyToStartContainers   True 
+  Initialized                 True 
+  Ready                       True 
+  ContainersReady             True 
+  PodScheduled                True 
+Volumes:
+  kube-api-access-jx76b:
+    Type:                    Projected (a volume that contains injected data from multiple sources)
+    TokenExpirationSeconds:  3607
+    ConfigMapName:           kube-root-ca.crt
+    Optional:                false
+    DownwardAPI:             true
+  home-init:
+    Type:       EmptyDir (a temporary directory that shares a pod's lifetime)
+    Medium:     Memory
+    SizeLimit:  <unset>
+  home-sidecar:
+    Type:       EmptyDir (a temporary directory that shares a pod's lifetime)
+    Medium:     Memory
+    SizeLimit:  <unset>
+  vault-secrets:
+    Type:        EmptyDir (a temporary directory that shares a pod's lifetime)
+    Medium:      Memory
+    SizeLimit:   <unset>
+QoS Class:       Burstable
+Node-Selectors:  <none>
+Tolerations:     node.kubernetes.io/not-ready:NoExecute op=Exists for 300s
+                 node.kubernetes.io/unreachable:NoExecute op=Exists for 300s
+Events:
+  Type    Reason     Age    From               Message
+  ----    ------     ----   ----               -------
+  Normal  Scheduled  2m35s  default-scheduler  Successfully assigned devops-helm/myapp-mychart-595bb97cd9-l8rfr to lab09-control-plane
+  Normal  Pulled     2m35s  kubelet            Container image "hashicorp/vault:1.21.2" already present on machine
+  Normal  Created    2m35s  kubelet            Created container: vault-agent-init
+  Normal  Started    2m35s  kubelet            Started container vault-agent-init
+  Normal  Pulled     2m34s  kubelet            Container image "sfedbro/app_python:latest" already present on machine
+  Normal  Created    2m34s  kubelet            Created container: mychart
+  Normal  Started    2m34s  kubelet            Started container mychart
+  Normal  Pulled     2m34s  kubelet            Container image "hashicorp/vault:1.21.2" already present on machine
+  Normal  Created    2m34s  kubelet            Created container: vault-agent
+  Normal  Started    2m34s  kubelet            Started container vault-agent
+
+=== kubectl exec -n devops-helm myapp-mychart-595bb97cd9-l8rfr -- ls -R /vault/secrets ===
+/vault/secrets:
+config
+config.env
+
+=== kubectl exec -n devops-helm myapp-mychart-595bb97cd9-l8rfr -- cat /vault/secrets/config.env ===
+USERNAME=admin
+PASSWORD=secret123
