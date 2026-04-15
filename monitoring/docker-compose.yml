@@ -132,9 +132,14 @@ services:
   app-python:
     build:
       context: ../app_python
-    image: devops-course/app-python:lab07
+    image: devops-course/app-python:lab12
     ports:
       - '18000:5000'
+    environment:
+      VISITS_FILE: /data/visits
+      CONFIG_FILE: /config/config.json
+    volumes:
+      - ./data/app-python:/data
     networks:
       - logging
     labels:

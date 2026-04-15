@@ -1,0 +1,354 @@
+---
+# Source: mychart/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: lab12-mychart
+  labels:
+    helm.sh/chart: mychart-0.1.0
+    app.kubernetes.io/name: mychart
+    app.kubernetes.io/instance: lab12
+    app.kubernetes.io/version: "latest"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: devops-core-course
+---
+# Source: mychart/templates/secrets.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: lab12-mychart-secret
+  labels:
+    helm.sh/chart: mychart-0.1.0
+    app.kubernetes.io/name: mychart
+    app.kubernetes.io/instance: lab12
+    app.kubernetes.io/version: "latest"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: devops-core-course
+type: Opaque
+stringData:
+  username: "change-me"
+  password: "change-me"
+---
+# Source: mychart/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: lab12-mychart-config
+  labels:
+    helm.sh/chart: mychart-0.1.0
+    app.kubernetes.io/name: mychart
+    app.kubernetes.io/instance: lab12
+    app.kubernetes.io/version: "latest"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: devops-core-course
+data:
+  config.json: |-
+    {
+      "application": {
+        "name": "devops-info-service",
+        "environment": "dev",
+        "configSource": "kubernetes-configmap"
+      },
+      "features": {
+        "visitsCounter": true,
+        "configHotReload": true
+      },
+      "settings": {
+        "logLevel": "debug",
+        "visitsFile": "/data/visits",
+        "configFile": "/config/config.json"
+      }
+    }
+---
+# Source: mychart/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: lab12-mychart-env
+  labels:
+    helm.sh/chart: mychart-0.1.0
+    app.kubernetes.io/name: mychart
+    app.kubernetes.io/instance: lab12
+    app.kubernetes.io/version: "latest"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: devops-core-course
+data:
+  APP_CONFIG_MODE: "configmap"
+  FEATURE_VISITS: "true"
+  LOG_LEVEL: "debug"
+---
+# Source: mychart/templates/pv.yaml
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: lab12-mychart-data
+  labels:
+    helm.sh/chart: mychart-0.1.0
+    app.kubernetes.io/name: mychart
+    app.kubernetes.io/instance: lab12
+    app.kubernetes.io/version: "latest"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: devops-core-course
+spec:
+  capacity:
+    storage: 100Mi
+  volumeMode: Filesystem
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: "manual"
+  hostPath:
+    path: "/var/local/devops-info-service"
+    type: DirectoryOrCreate
+---
+# Source: mychart/templates/pvc.yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: lab12-mychart-data
+  labels:
+    helm.sh/chart: mychart-0.1.0
+    app.kubernetes.io/name: mychart
+    app.kubernetes.io/instance: lab12
+    app.kubernetes.io/version: "latest"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: devops-core-course
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 100Mi
+  storageClassName: "manual"
+  volumeName: lab12-mychart-data
+---
+# Source: mychart/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: lab12-mychart
+  labels:
+    helm.sh/chart: mychart-0.1.0
+    app.kubernetes.io/name: mychart
+    app.kubernetes.io/instance: lab12
+    app.kubernetes.io/version: "latest"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: devops-core-course
+spec:
+  type: NodePort
+  selector:
+    app.kubernetes.io/name: mychart
+    app.kubernetes.io/instance: lab12
+  ports:
+    - name: http
+      protocol: TCP
+      port: 80
+      targetPort: http
+      nodePort: 30081
+---
+# Source: mychart/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: lab12-mychart
+  labels:
+    helm.sh/chart: mychart-0.1.0
+    app.kubernetes.io/name: mychart
+    app.kubernetes.io/instance: lab12
+    app.kubernetes.io/version: "latest"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: devops-core-course
+spec:
+  replicas: 1
+  revisionHistoryLimit: 5
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: mychart
+      app.kubernetes.io/instance: lab12
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: mychart
+        app.kubernetes.io/instance: lab12
+        app.kubernetes.io/part-of: devops-core-course
+      annotations:
+        checksum/config: 0067676fee1f88e1bc24b31306dd319f8aa0db05f4e67b3616daa791cf8f43bd
+    spec:
+      serviceAccountName: lab12-mychart
+      terminationGracePeriodSeconds: 30
+      initContainers:
+        - name: init-data-permissions
+          image: "busybox:1.36"
+          imagePullPolicy: IfNotPresent
+          command:
+            - sh
+            - -c
+            - chown -R 1000:1000 /data
+          securityContext:
+            runAsUser: 0
+            runAsGroup: 0
+            allowPrivilegeEscalation: false
+          volumeMounts:
+            - name: app-data
+              mountPath: /data
+      containers:
+        - name: mychart
+          image: "sfedbro/app_python:lab12"
+          imagePullPolicy: Always
+          ports:
+            - name: http
+              containerPort: 5000
+              protocol: TCP
+          env:
+            
+            - name: HOST
+              value: "0.0.0.0"
+            - name: PORT
+              value: "5000"
+            - name: DEBUG
+              value: "true"
+            - name: APP_ENV
+              value: "dev"
+            - name: VISITS_FILE
+              value: "/data/visits"
+            - name: CONFIG_FILE
+              value: "/config/config.json"
+          envFrom:
+            - secretRef:
+                name: lab12-mychart-secret
+            - configMapRef:
+                name: lab12-mychart-env
+          volumeMounts:
+            - name: app-config
+              mountPath: /config
+              readOnly: true
+            - name: app-data
+              mountPath: /data
+          resources:
+            limits:
+              cpu: 100m
+              memory: 128Mi
+            requests:
+              cpu: 50m
+              memory: 64Mi
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 3
+            periodSeconds: 5
+            timeoutSeconds: 2
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 2
+            failureThreshold: 3
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: false
+            runAsGroup: 1000
+            runAsNonRoot: true
+            runAsUser: 1000
+      volumes:
+        - name: app-config
+          configMap:
+            name: lab12-mychart-config
+        - name: app-data
+          persistentVolumeClaim:
+            claimName: lab12-mychart-data
+---
+# Source: mychart/templates/hooks/post-install-job.yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: "lab12-mychart-post-install"
+  labels:
+    helm.sh/chart: mychart-0.1.0
+    app.kubernetes.io/name: mychart
+    app.kubernetes.io/instance: lab12
+    app.kubernetes.io/version: "latest"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: devops-core-course
+  annotations:
+    "helm.sh/hook": post-install
+    "helm.sh/hook-weight": "5"
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+spec:
+  template:
+    metadata:
+      name: "lab12-mychart-post-install"
+      labels:
+        app.kubernetes.io/name: mychart
+        app.kubernetes.io/instance: lab12
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: post-install-smoke-test
+          image: "busybox:1.36"
+          imagePullPolicy: IfNotPresent
+          command:
+            - sh
+            - -c
+            - |
+              set -eu
+              i=0
+              until wget -qO- "http://lab12-mychart:80/health" >/dev/null 2>&1; do
+                i=$((i+1))
+                if [ "$i" -ge 15 ]; then
+                  echo "Smoke test failed for lab12-mychart"
+                  exit 1
+                fi
+                echo "Waiting for application to become reachable..."
+                sleep 2
+              done
+              echo "Post-install smoke test passed for lab12-mychart"
+  backoffLimit: 0
+---
+# Source: mychart/templates/hooks/pre-install-job.yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: "lab12-mychart-pre-install"
+  labels:
+    helm.sh/chart: mychart-0.1.0
+    app.kubernetes.io/name: mychart
+    app.kubernetes.io/instance: lab12
+    app.kubernetes.io/version: "latest"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: devops-core-course
+  annotations:
+    "helm.sh/hook": pre-install
+    "helm.sh/hook-weight": "-5"
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+spec:
+  template:
+    metadata:
+      name: "lab12-mychart-pre-install"
+      labels:
+        app.kubernetes.io/name: mychart
+        app.kubernetes.io/instance: lab12
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: pre-install-check
+          image: "busybox:1.36"
+          imagePullPolicy: IfNotPresent
+          command:
+            - sh
+            - -c
+            - |
+              set -eu
+              [ -n "sfedbro/app_python" ]
+              [ -n "lab12" ]
+              [ 1 -ge 1 ]
+              echo "Pre-install validation succeeded for lab12-mychart"
+  backoffLimit: 0

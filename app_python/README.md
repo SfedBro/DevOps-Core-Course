@@ -46,6 +46,29 @@ HOST=127.0.0.1 PORT=8080 python app.py
 
 - `GET /` - Service and system information
 - `GET /health` - Health check
+- `GET /metrics` - Prometheus metrics
+- `GET /visits` - Current persisted visits count
+
+## Visits Counter
+
+The root endpoint increments a persisted visits counter on every request. The
+counter is stored as a plain text integer.
+
+Configuration:
+
+- `VISITS_FILE` - path to the visits counter file. Docker and Kubernetes use
+  `/data/visits`.
+- `CONFIG_FILE` - optional JSON configuration file path. Kubernetes mounts this
+  from a ConfigMap at `/config/config.json`.
+
+Local example:
+
+```bash
+VISITS_FILE=./data/visits python app.py
+curl http://localhost:5000/
+curl http://localhost:5000/visits
+cat ./data/visits
+```
 
 ## Troubleshooting
 
@@ -69,22 +92,25 @@ This application is containerized using Docker for easy deployment and consisten
 ### Build Docker Image Locally
 
 ```
-docker build -t sfedbro/app_python:lab02 .
+docker build -t sfedbro/app_python:lab12 .
 ```
 
 ### Run Container Locally
 
 ```
-docker run -p 5000:5000 sfedbro/app_python:lab02
+docker run -p 5000:5000 -v ${PWD}/data:/data sfedbro/app_python:lab12
 ```
 
 Access the app at http://localhost:5000 .
 
+The `-v ${PWD}/data:/data` mount keeps `/data/visits` on the host, so the count
+survives container restarts.
+
 ### Pull and Run from Docker Hub
 
 ```
-docker pull sfedbro/app_python:lab02
-docker run -p 5000:5000 sfedbro/app_python:lab02
+docker pull sfedbro/app_python:lab12
+docker run -p 5000:5000 -v ${PWD}/data:/data sfedbro/app_python:lab12
 ```
 
 ## Testing

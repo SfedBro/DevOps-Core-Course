@@ -4,9 +4,12 @@ import os
 import platform
 import socket
 import sys
+import tempfile
 import time
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
+from pathlib import Path
+from threading import Lock
 
 from fastapi import FastAPI, Request, Response
 from prometheus_client import CONTENT_TYPE_LATEST, Counter, Gauge, Histogram, generate_latest
@@ -93,9 +96,64 @@ SYSTEM_INFO_DURATION = Histogram(
 HOST = os.getenv("HOST", "0.0.0.0")
 PORT = int(os.getenv("PORT", 5000))
 DEBUG = os.getenv("DEBUG", "false").lower() == "true"
+VISITS_FILE = Path(
+    os.getenv(
+        "VISITS_FILE",
+        str(Path(tempfile.gettempdir()) / "devops-info-service" / "visits"),
+    )
+)
+CONFIG_FILE = Path(os.getenv("CONFIG_FILE", "/config/config.json"))
 
 # ======== Setup ========
 START_TIME = datetime.now(timezone.utc)
+
+
+class VisitsCounter:
+    def __init__(self, path: Path):
+        self.path = path
+        self.lock = Lock()
+        self.value = self._read_from_disk()
+
+    def _read_from_disk(self) -> int:
+        try:
+            raw_value = self.path.read_text(encoding="utf-8").strip()
+        except FileNotFoundError:
+            return 0
+        except OSError as exc:
+            logger.warning(
+                "could not read visits file",
+                extra={"event": "visits_read_failed", "path": str(self.path), "error": str(exc)},
+            )
+            return self.value if hasattr(self, "value") else 0
+
+        try:
+            return max(int(raw_value), 0)
+        except ValueError:
+            logger.warning(
+                "invalid visits file content",
+                extra={"event": "visits_invalid_value", "path": str(self.path)},
+            )
+            return 0
+
+    def _write_to_disk(self, value: int) -> None:
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        tmp_path = self.path.with_name(f".{self.path.name}.tmp")
+        tmp_path.write_text(f"{value}\n", encoding="utf-8")
+        os.replace(tmp_path, self.path)
+
+    def increment(self) -> int:
+        with self.lock:
+            self.value = self._read_from_disk() + 1
+            self._write_to_disk(self.value)
+            return self.value
+
+    def current(self) -> int:
+        with self.lock:
+            self.value = self._read_from_disk()
+            return self.value
+
+
+visits_counter = VisitsCounter(VISITS_FILE)
 
 
 @asynccontextmanager
@@ -107,6 +165,8 @@ async def lifespan(_: FastAPI):
             "host": HOST,
             "port": PORT,
             "debug": DEBUG,
+            "visits_file": str(VISITS_FILE),
+            "config_file": str(CONFIG_FILE),
         },
     )
     yield
@@ -117,7 +177,7 @@ app = FastAPI(lifespan=lifespan)
 
 
 def normalize_endpoint(path: str) -> str:
-    if path in {"/", "/health", "/metrics"}:
+    if path in {"/", "/health", "/metrics", "/visits"}:
         return path
     return "other"
 
@@ -194,6 +254,7 @@ async def log_requests(request: Request, call_next):
 @app.get("/")
 def main_endpoint(request: Request):
     ENDPOINT_CALLS.labels(endpoint="/").inc()
+    visits = visits_counter.increment()
     return {
         "service": {
             "name": "devops-info-service",
@@ -202,11 +263,16 @@ def main_endpoint(request: Request):
             "framework": "FastAPI",
         },
         "system": get_system_info(),
+        "configuration": get_app_config(),
         "runtime": {
             "uptime_seconds": get_uptime()["seconds"],
             "uptime_human": get_uptime()["human"],
             "current_time": get_current_time(),
             "timezone": "UTC",      # Static for simplicity
+        },
+        "visits": {
+            "count": visits,
+            "file": str(VISITS_FILE),
         },
         "request": {
             "client_ip": request.client.host,
@@ -219,6 +285,8 @@ def main_endpoint(request: Request):
              "description": "Service information"},
             {"path": "/health", "method": "GET",
              "description": "Health check"},
+            {"path": "/visits", "method": "GET",
+             "description": "Current persisted visits count"},
         ],
     }
 
@@ -239,7 +307,47 @@ def metrics():
     return Response(generate_latest(), media_type=CONTENT_TYPE_LATEST)
 
 
+@app.get("/visits")
+def visits():
+    ENDPOINT_CALLS.labels(endpoint="/visits").inc()
+    return {
+        "visits": visits_counter.current(),
+        "file": str(VISITS_FILE),
+    }
+
+
 # ======== Functions ========
+def get_app_config():
+    try:
+        return json.loads(CONFIG_FILE.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        return {
+            "application": {
+                "name": "devops-info-service",
+                "environment": os.getenv("APP_ENV", "local"),
+                "configSource": "default",
+            },
+            "features": {
+                "visitsCounter": True,
+            },
+        }
+    except (OSError, json.JSONDecodeError) as exc:
+        logger.warning(
+            "could not load app config",
+            extra={"event": "config_load_failed", "path": str(CONFIG_FILE), "error": str(exc)},
+        )
+        return {
+            "application": {
+                "name": "devops-info-service",
+                "environment": os.getenv("APP_ENV", "local"),
+                "configSource": "fallback",
+            },
+            "features": {
+                "visitsCounter": True,
+            },
+        }
+
+
 def get_system_info():
     started = time.perf_counter()
     hostname = socket.gethostname()
@@ -279,7 +387,7 @@ if __name__ == "__main__":
         app,
         host=HOST,
         port=PORT,
-        reload=DEBUG,
+        reload=False,
         access_log=False,
         log_config=None,
     )

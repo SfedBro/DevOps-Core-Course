@@ -1,0 +1,19 @@
+{{- if and .Values.persistence.enabled .Values.persistence.hostPath.enabled }}
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: {{ include "mychart.dataName" . }}
+  labels:
+    {{- include "mychart.labels" . | nindent 4 }}
+spec:
+  capacity:
+    storage: {{ .Values.persistence.size }}
+  volumeMode: Filesystem
+  accessModes:
+    {{- toYaml .Values.persistence.accessModes | nindent 4 }}
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: {{ .Values.persistence.storageClass | quote }}
+  hostPath:
+    path: {{ .Values.persistence.hostPath.path | quote }}
+    type: DirectoryOrCreate
+{{- end }}
