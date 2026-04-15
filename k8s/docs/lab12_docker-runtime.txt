@@ -1,0 +1,53 @@
+Lab 12 local Docker persistence evidence - 2026-04-15T23:25:30
+
+IMAGE=sfedbro/app_python:lab12
+DATA_DIR=C:\Users\Admin\AppData\Local\Temp\devops-lab12-visits
+
+=== Docker image ===
+COMMAND: docker image inspect sfedbro/app_python:lab12 --format '{{.RepoTags}} {{.Id}}'
+[devops-course/app-python:lab12 sfedbro/app_python:lab12] sha256:e9c3a692264f78ab9b86f85a0d3023bb6e759d6e8f834a53b88eb7f76076881e
+
+
+=== Start container with persistent volume ===
+COMMAND: docker run -d --name devops-lab12-evidence -p 18090:5000 -e VISITS_FILE=/data/visits -v C:\Users\Admin\AppData\Local\Temp\devops-lab12-visits:/data sfedbro/app_python:lab12
+1e7a327ee8a7149b1730e29d1c043f31062e8445c74ba6ee4136ee07f7b97793
+
+
+=== First root request ===
+COMMAND: curl.exe -s http://localhost:18090/
+{"service":{"name":"devops-info-service","version":"1.0.0","description":"DevOps course info service","framework":"FastAPI"},"system":{"hostname":"1e7a327ee8a7","platform":"Linux","architecture":"x86_64","cpu_count":16,"python_version":"3.12.13"},"configuration":{"application":{"name":"devops-info-service","environment":"local","configSource":"default"},"features":{"visitsCounter":true}},"runtime":{"uptime_seconds":2,"uptime_human":"0 hours, 0 minutes","current_time":"2026-04-15T20:25:34.092987+00:00","timezone":"UTC"},"visits":{"count":1,"file":"/data/visits"},"request":{"client_ip":"172.17.0.1","user_agent":"curl/8.13.0","method":"GET","path":"/"},"endpoints":[{"path":"/","method":"GET","description":"Service information"},{"path":"/health","method":"GET","description":"Health check"},{"path":"/visits","method":"GET","description":"Current persisted visits count"}]}
+
+
+=== Second root request ===
+COMMAND: curl.exe -s http://localhost:18090/
+{"service":{"name":"devops-info-service","version":"1.0.0","description":"DevOps course info service","framework":"FastAPI"},"system":{"hostname":"1e7a327ee8a7","platform":"Linux","architecture":"x86_64","cpu_count":16,"python_version":"3.12.13"},"configuration":{"application":{"name":"devops-info-service","environment":"local","configSource":"default"},"features":{"visitsCounter":true}},"runtime":{"uptime_seconds":2,"uptime_human":"0 hours, 0 minutes","current_time":"2026-04-15T20:25:34.170951+00:00","timezone":"UTC"},"visits":{"count":2,"file":"/data/visits"},"request":{"client_ip":"172.17.0.1","user_agent":"curl/8.13.0","method":"GET","path":"/"},"endpoints":[{"path":"/","method":"GET","description":"Service information"},{"path":"/health","method":"GET","description":"Health check"},{"path":"/visits","method":"GET","description":"Current persisted visits count"}]}
+
+
+=== Visits before restart ===
+COMMAND: curl.exe -s http://localhost:18090/visits
+{"visits":2,"file":"/data/visits"}
+
+
+=== Host visits file before restart ===
+COMMAND: Get-Content C:\Users\Admin\AppData\Local\Temp\devops-lab12-visits\visits
+2
+
+
+=== Restart container ===
+COMMAND: docker restart devops-lab12-evidence
+devops-lab12-evidence
+
+
+=== Visits after restart ===
+COMMAND: curl.exe -s http://localhost:18090/visits
+{"visits":2,"file":"/data/visits"}
+
+
+=== Host visits file after restart ===
+COMMAND: Get-Content C:\Users\Admin\AppData\Local\Temp\devops-lab12-visits\visits
+2
+
+
+=== Remove evidence container ===
+COMMAND: docker rm -f devops-lab12-evidence
+devops-lab12-evidence

@@ -2,10 +2,16 @@ replicaCount: 3
 
 nameOverride: ""
 fullnameOverride: ""
+environment: dev
+logLevel: info
+
+featureFlags:
+  visitsCounter: true
+  configHotReload: true
 
 image:
   repository: sfedbro/app_python
-  tag: latest
+  tag: lab12
   pullPolicy: Always
 
 containerPort: 5000
@@ -25,6 +31,38 @@ env:
     value: "false"
   - name: APP_ENV
     value: "dev"
+  - name: VISITS_FILE
+    value: "/data/visits"
+  - name: CONFIG_FILE
+    value: "/config/config.json"
+
+configMap:
+  enabled: true
+  mountPath: /config
+  fileName: config.json
+  env:
+    enabled: true
+    data:
+      APP_CONFIG_MODE: configmap
+      LOG_LEVEL: info
+      FEATURE_VISITS: "true"
+
+persistence:
+  enabled: true
+  mountPath: /data
+  size: 100Mi
+  accessModes:
+    - ReadWriteOnce
+  storageClass: manual
+  hostPath:
+    enabled: true
+    path: /var/local/devops-info-service
+  chownOnStart:
+    enabled: true
+    image:
+      repository: busybox
+      tag: "1.36"
+      pullPolicy: IfNotPresent
 
 serviceAccount:
   create: true

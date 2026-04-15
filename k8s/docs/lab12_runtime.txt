@@ -1,0 +1,154 @@
+Lab 12 runtime evidence - 2026-04-15T23:24:56
+
+=== Helm release ===
+COMMAND: helm status lab12 -n devops-lab12
+NAME: lab12
+LAST DEPLOYED: Wed Apr 15 23:22:55 2026
+NAMESPACE: devops-lab12
+STATUS: deployed
+REVISION: 5
+DESCRIPTION: Upgrade complete
+RESOURCES:
+==> v1/ServiceAccount
+NAME            SECRETS   AGE
+lab12-mychart   0         6h23m
+
+==> v1/Secret
+NAME                   TYPE     DATA   AGE
+lab12-mychart-secret   Opaque   2      6h23m
+
+==> v1/ConfigMap
+NAME                   DATA   AGE
+lab12-mychart-config   1      6h23m
+lab12-mychart-env   3     6h23m
+
+==> v1/PersistentVolume
+NAME                 CAPACITY   ACCESS MODES   RECLAIM POLICY   STATUS   CLAIM                             STORAGECLASS   VOLUMEATTRIBUTESCLASS   REASON   AGE
+lab12-mychart-data   100Mi      RWO            Retain           Bound    devops-lab12/lab12-mychart-data   manual         <unset>                          6h23m
+
+==> v1/PersistentVolumeClaim
+NAME                 STATUS   VOLUME               CAPACITY   ACCESS MODES   STORAGECLASS   VOLUMEATTRIBUTESCLASS   AGE
+lab12-mychart-data   Bound    lab12-mychart-data   100Mi      RWO            manual         <unset>                 6h23m
+
+==> v1/Service
+NAME            TYPE        CLUSTER-IP     EXTERNAL-IP   PORT(S)   AGE
+lab12-mychart   ClusterIP   10.96.139.11   <none>        80/TCP    6h23m
+
+==> v1/Deployment
+NAME            READY   UP-TO-DATE   AVAILABLE   AGE
+lab12-mychart   1/1     1            1           6h23m
+
+==> v1/Pod(related)
+NAME                             READY   STATUS    RESTARTS        AGE
+lab12-mychart-78b7cbfc7b-mczkb   1/1     Running   1 (2m40s ago)   6h3m
+
+
+TEST SUITE: None
+NOTES:
+Thank you for installing mychart.
+
+Release name: lab12
+Namespace: devops-lab12
+The service type is ClusterIP.
+
+Check the service:
+  kubectl get svc -n devops-lab12 lab12-mychart
+
+
+=== Deployment image ===
+COMMAND: kubectl get deployment lab12-mychart -n devops-lab12 -o jsonpath='{.spec.template.spec.containers[0].image}'
+sfedbro/app_python:lab12
+
+
+=== ConfigMaps and PVC ===
+COMMAND: kubectl get configmap,pvc -n devops-lab12
+NAME                             DATA   AGE
+configmap/kube-root-ca.crt       1      6h23m
+configmap/lab12-mychart-config   1      6h23m
+configmap/lab12-mychart-env      3      6h23m
+
+NAME                                       STATUS   VOLUME               CAPACITY   ACCESS MODES   STORAGECLASS   VOLUMEATTRIBUTESCLASS   AGE
+persistentvolumeclaim/lab12-mychart-data   Bound    lab12-mychart-data   100Mi      RWO            manual         <unset>                 6h23m
+
+
+=== PersistentVolume ===
+COMMAND: kubectl get pv lab12-mychart-data
+NAME                 CAPACITY   ACCESS MODES   RECLAIM POLICY   STATUS   CLAIM                             STORAGECLASS   VOLUMEATTRIBUTESCLASS   REASON   AGE
+lab12-mychart-data   100Mi      RWO            Retain           Bound    devops-lab12/lab12-mychart-data   manual         <unset>                          6h23m
+
+
+=== Selected pod ===
+COMMAND: kubectl get pods -n devops-lab12 -l app.kubernetes.io/instance=lab12,app.kubernetes.io/name=mychart -o jsonpath='{.items[0].metadata.name}'
+lab12-mychart-78b7cbfc7b-mczkb
+
+
+=== ConfigMap file mounted in pod ===
+COMMAND: kubectl exec -n devops-lab12 lab12-mychart-78b7cbfc7b-mczkb -c mychart -- cat /config/config.json
+{
+  "application": {
+    "name": "devops-info-service",
+    "environment": "dev",
+    "configSource": "kubernetes-configmap"
+  },
+  "features": {
+    "visitsCounter": true,
+    "configHotReload": true
+  },
+  "settings": {
+    "logLevel": "debug",
+    "visitsFile": "/data/visits",
+    "configFile": "/config/config.json"
+  }
+}
+
+
+=== ConfigMap env vars in pod ===
+COMMAND: kubectl exec -n devops-lab12 lab12-mychart-78b7cbfc7b-mczkb -c mychart -- printenv | Select-String -Pattern 'APP_CONFIG_MODE|LOG_LEVEL|FEATURE_VISITS|VISITS_FILE|CONFIG_FILE|APP_ENV'
+
+VISITS_FILE=/data/visits
+APP_ENV=dev
+CONFIG_FILE=/config/config.json
+APP_CONFIG_MODE=configmap
+FEATURE_VISITS=true
+LOG_LEVEL=debug
+
+
+
+=== Root request increments visits - request 1 ===
+COMMAND: kubectl exec -n devops-lab12 lab12-mychart-78b7cbfc7b-mczkb -c mychart -- python -c "import urllib.request; print(urllib.request.urlopen('http://127.0.0.1:5000/').read().decode())"
+{"service":{"name":"devops-info-service","version":"1.0.0","description":"DevOps course info service","framework":"FastAPI"},"system":{"hostname":"lab12-mychart-78b7cbfc7b-mczkb","platform":"Linux","architecture":"x86_64","cpu_count":16,"python_version":"3.12.13"},"configuration":{"application":{"name":"devops-info-service","environment":"dev","configSource":"kubernetes-configmap"},"features":{"visitsCounter":true,"configHotReload":true},"settings":{"logLevel":"debug","visitsFile":"/data/visits","configFile":"/config/config.json"}},"runtime":{"uptime_seconds":142,"uptime_human":"0 hours, 2 minutes","current_time":"2026-04-15T20:24:58.458689+00:00","timezone":"UTC"},"visits":{"count":5,"file":"/data/visits"},"request":{"client_ip":"127.0.0.1","user_agent":"Python-urllib/3.12","method":"GET","path":"/"},"endpoints":[{"path":"/","method":"GET","description":"Service information"},{"path":"/health","method":"GET","description":"Health check"},{"path":"/visits","method":"GET","description":"Current persisted visits count"}]}
+
+
+=== Root request increments visits - request 2 ===
+COMMAND: kubectl exec -n devops-lab12 lab12-mychart-78b7cbfc7b-mczkb -c mychart -- python -c "import urllib.request; print(urllib.request.urlopen('http://127.0.0.1:5000/').read().decode())"
+{"service":{"name":"devops-info-service","version":"1.0.0","description":"DevOps course info service","framework":"FastAPI"},"system":{"hostname":"lab12-mychart-78b7cbfc7b-mczkb","platform":"Linux","architecture":"x86_64","cpu_count":16,"python_version":"3.12.13"},"configuration":{"application":{"name":"devops-info-service","environment":"dev","configSource":"kubernetes-configmap"},"features":{"visitsCounter":true,"configHotReload":true},"settings":{"logLevel":"debug","visitsFile":"/data/visits","configFile":"/config/config.json"}},"runtime":{"uptime_seconds":142,"uptime_human":"0 hours, 2 minutes","current_time":"2026-04-15T20:24:59.150555+00:00","timezone":"UTC"},"visits":{"count":6,"file":"/data/visits"},"request":{"client_ip":"127.0.0.1","user_agent":"Python-urllib/3.12","method":"GET","path":"/"},"endpoints":[{"path":"/","method":"GET","description":"Service information"},{"path":"/health","method":"GET","description":"Health check"},{"path":"/visits","method":"GET","description":"Current persisted visits count"}]}
+
+
+=== Visits before pod deletion ===
+COMMAND: kubectl exec -n devops-lab12 lab12-mychart-78b7cbfc7b-mczkb -c mychart -- python -c "import urllib.request; print(urllib.request.urlopen('http://127.0.0.1:5000/visits').read().decode())"
+{"visits":6,"file":"/data/visits"}
+
+
+=== Visits file before pod deletion ===
+COMMAND: kubectl exec -n devops-lab12 lab12-mychart-78b7cbfc7b-mczkb -c mychart -- cat /data/visits
+6
+
+
+=== Delete pod ===
+COMMAND: kubectl delete pod lab12-mychart-78b7cbfc7b-mczkb -n devops-lab12
+pod "lab12-mychart-78b7cbfc7b-mczkb" deleted from devops-lab12 namespace
+
+
+=== New pod after deletion ===
+COMMAND: kubectl get pods -n devops-lab12 -l app.kubernetes.io/instance=lab12,app.kubernetes.io/name=mychart -o jsonpath='{.items[0].metadata.name}'
+lab12-mychart-78b7cbfc7b-qqfxp
+
+
+=== Visits after pod recreation ===
+COMMAND: kubectl exec -n devops-lab12 lab12-mychart-78b7cbfc7b-qqfxp -c mychart -- python -c "import urllib.request; print(urllib.request.urlopen('http://127.0.0.1:5000/visits').read().decode())"
+{"visits":6,"file":"/data/visits"}
+
+
+=== Visits file after pod recreation ===
+COMMAND: kubectl exec -n devops-lab12 lab12-mychart-78b7cbfc7b-qqfxp -c mychart -- cat /data/visits
+6

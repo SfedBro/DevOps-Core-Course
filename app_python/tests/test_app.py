@@ -15,7 +15,9 @@ def test_root_endpoint_structure():
 
     assert "service" in data
     assert "system" in data
+    assert "configuration" in data
     assert "runtime" in data
+    assert "visits" in data
     assert "request" in data
     assert "endpoints" in data
 
@@ -72,6 +74,7 @@ def test_not_found_endpoint():
 def test_metrics_endpoint_exposes_prometheus_metrics():
     client.get("/")
     client.get("/health")
+    client.get("/visits")
 
     response = client.get("/metrics")
 
@@ -85,3 +88,14 @@ def test_metrics_endpoint_exposes_prometheus_metrics():
     assert "devops_info_endpoint_calls_total" in body
     assert 'endpoint="/"' in body
     assert 'endpoint="/health"' in body
+    assert 'endpoint="/visits"' in body
+
+
+def test_visits_endpoint_tracks_root_requests():
+    before = client.get("/visits").json()["visits"]
+
+    client.get("/")
+
+    after = client.get("/visits").json()["visits"]
+
+    assert after >= before + 1

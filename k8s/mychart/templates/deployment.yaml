@@ -1,3 +1,4 @@
+{{- $envConfigEnabled := and .Values.configMap.enabled .Values.configMap.env.enabled -}}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -20,13 +21,31 @@ spec:
       labels:
         {{- include "mychart.selectorLabels" . | nindent 8 }}
         app.kubernetes.io/part-of: devops-core-course
-      {{- if .Values.vault.enabled }}
       annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+      {{- if .Values.vault.enabled }}
         {{- include "mychart.vaultAnnotations" . | nindent 8 }}
       {{- end }}
     spec:
       serviceAccountName: {{ include "mychart.serviceAccountName" . }}
       terminationGracePeriodSeconds: 30
+      {{- if and .Values.persistence.enabled .Values.persistence.chownOnStart.enabled }}
+      initContainers:
+        - name: init-data-permissions
+          image: "{{ .Values.persistence.chownOnStart.image.repository }}:{{ .Values.persistence.chownOnStart.image.tag }}"
+          imagePullPolicy: {{ .Values.persistence.chownOnStart.image.pullPolicy }}
+          command:
+            - sh
+            - -c
+            - chown -R {{ .Values.securityContext.runAsUser }}:{{ .Values.securityContext.runAsGroup }} {{ .Values.persistence.mountPath }}
+          securityContext:
+            runAsUser: 0
+            runAsGroup: 0
+            allowPrivilegeEscalation: false
+          volumeMounts:
+            - name: app-data
+              mountPath: {{ .Values.persistence.mountPath }}
+      {{- end }}
       containers:
         - name: {{ include "mychart.name" . }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
@@ -41,6 +60,26 @@ spec:
           envFrom:
             - secretRef:
                 name: {{ include "mychart.secretName" . }}
+          {{- else if $envConfigEnabled }}
+          envFrom:
+            - configMapRef:
+                name: {{ include "mychart.envConfigMapName" . }}
+          {{- end }}
+          {{- if and .Values.secrets.enabled $envConfigEnabled }}
+            - configMapRef:
+                name: {{ include "mychart.envConfigMapName" . }}
+          {{- end }}
+          {{- if or .Values.configMap.enabled .Values.persistence.enabled }}
+          volumeMounts:
+            {{- if .Values.configMap.enabled }}
+            - name: app-config
+              mountPath: {{ .Values.configMap.mountPath }}
+              readOnly: true
+            {{- end }}
+            {{- if .Values.persistence.enabled }}
+            - name: app-data
+              mountPath: {{ .Values.persistence.mountPath }}
+            {{- end }}
           {{- end }}
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
@@ -62,4 +101,16 @@ spec:
             failureThreshold: {{ .Values.livenessProbe.failureThreshold }}
           securityContext:
             {{- toYaml .Values.securityContext | nindent 12 }}
-
+      {{- if or .Values.configMap.enabled .Values.persistence.enabled }}
+      volumes:
+        {{- if .Values.configMap.enabled }}
+        - name: app-config
+          configMap:
+            name: {{ include "mychart.configMapName" . }}
+        {{- end }}
+        {{- if .Values.persistence.enabled }}
+        - name: app-data
+          persistentVolumeClaim:
+            claimName: {{ include "mychart.dataName" . }}
+        {{- end }}
+      {{- end }}

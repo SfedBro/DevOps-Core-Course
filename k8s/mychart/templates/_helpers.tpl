@@ -56,6 +56,27 @@ Secret name.
 {{- end -}}
 
 {{/*
+ConfigMap name for file-based application configuration.
+*/}}
+{{- define "mychart.configMapName" -}}
+{{- printf "%s-config" (include "mychart.fullname" .) | trunc 63 | trimSuffix "-" -}}
+{{- end -}}
+
+{{/*
+ConfigMap name for environment variable injection.
+*/}}
+{{- define "mychart.envConfigMapName" -}}
+{{- printf "%s-env" (include "mychart.fullname" .) | trunc 63 | trimSuffix "-" -}}
+{{- end -}}
+
+{{/*
+PVC/PV name for persistent application data.
+*/}}
+{{- define "mychart.dataName" -}}
+{{- printf "%s-data" (include "mychart.fullname" .) | trunc 63 | trimSuffix "-" -}}
+{{- end -}}
+
+{{/*
 Named template for regular environment variables.
 */}}
 {{- define "mychart.envVars" -}}

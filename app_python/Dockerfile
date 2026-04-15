@@ -9,11 +9,16 @@ COPY requirements.txt .
 RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/* \
     && useradd --create-home --shell /bin/bash appuser \
+    && mkdir -p /data /config \
+    && chown -R appuser:appuser /data /config \
     && pip install --no-cache-dir -r requirements.txt
 
-    COPY app.py .
+COPY app.py .
 #COPY templates/ templates/
 # There are no /templates now...
+
+ENV VISITS_FILE=/data/visits
+ENV CONFIG_FILE=/config/config.json
 
 EXPOSE 5000
 

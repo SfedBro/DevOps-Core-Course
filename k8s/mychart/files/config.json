@@ -1,0 +1,16 @@
+{
+  "application": {
+    "name": "devops-info-service",
+    "environment": "{{ .Values.environment }}",
+    "configSource": "kubernetes-configmap"
+  },
+  "features": {
+    "visitsCounter": {{ .Values.featureFlags.visitsCounter }},
+    "configHotReload": {{ .Values.featureFlags.configHotReload }}
+  },
+  "settings": {
+    "logLevel": "{{ .Values.logLevel }}",
+    "visitsFile": "{{ .Values.persistence.mountPath }}/visits",
+    "configFile": "{{ .Values.configMap.mountPath }}/{{ .Values.configMap.fileName }}"
+  }
+}

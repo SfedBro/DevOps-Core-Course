@@ -1,0 +1,24 @@
+{{- if .Values.configMap.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "mychart.configMapName" . }}
+  labels:
+    {{- include "mychart.labels" . | nindent 4 }}
+data:
+  {{ .Values.configMap.fileName }}: |-
+{{ tpl (.Files.Get "files/config.json") . | indent 4 }}
+{{- if .Values.configMap.env.enabled }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "mychart.envConfigMapName" . }}
+  labels:
+    {{- include "mychart.labels" . | nindent 4 }}
+data:
+{{- range $key, $value := .Values.configMap.env.data }}
+  {{ $key }}: {{ $value | quote }}
+{{- end }}
+{{- end }}
+{{- end }}

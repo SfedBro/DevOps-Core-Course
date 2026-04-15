@@ -8,6 +8,7 @@ test
 secrets/
 *.key
 *.json
+!k8s/mychart/files/config.json
 
 # Terraform
 *.tfstate
@@ -23,6 +24,7 @@ Pulumi.*.yaml
 
 # Keys
 *.json
+!k8s/mychart/files/config.json
 *.pem
 *.key
 
@@ -40,6 +42,8 @@ test
 *.pyc
 .env
 *.env
+app_python/data/
+monitoring/data/
 
 # Windows/Binaries
 *.exe
