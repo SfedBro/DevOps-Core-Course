@@ -34,8 +34,9 @@ Without that push, ArgoCD cannot fetch the `lab13` revision from GitHub.
 Local environment note:
 
 - on 2026-04-23 the configured Kubernetes context was `kind-lab09`
-- the API endpoint `https://127.0.0.1:2068` was unavailable because the local Docker daemon was not running
-- because of that, the repository setup and runbook are complete, but live sync evidence and screenshots must be regenerated after restarting Docker Desktop and the cluster
+- Docker Desktop was initially stopped, so the cluster API was unavailable until the daemon was restarted
+- after restart, ArgoCD was installed successfully and the applications reconciled against commit `d6b0ea0bfbbcfcdf9234a1e7eece4ee76c068edf`
+- the local Windows `argocd login` via port-forward remained unstable, so live status checks were verified primarily through Kubernetes `Application` resources
 
 Install ArgoCD via Helm:
 
@@ -84,19 +85,32 @@ Verification checklist after startup:
 - `argocd version`
 - `argocd app list`
 
+Observed setup state on 2026-04-23:
+
+- `argocd` CLI installed successfully via `winget`
+- installed CLI version: `v3.3.8+7ae7d2c`
+- ArgoCD Helm release upgraded to revision `2`
+- `repoServer` needed relaxed probes and small CPU or memory requests in [argocd/install-values.yaml](./argocd/install-values.yaml) to stay healthy on this local `kind` cluster
+- local `argocd login` over Windows port-forward remained unstable, so application sync and status verification were executed through Kubernetes `Application` resources
+
 ## Application Configuration
 
 ### Single application
 
 The base manifest [argocd/application.yaml](./argocd/application.yaml) deploys the chart with `values.yaml` into namespace `devops-gitops`.
 
+Additional overrides are applied there to avoid collisions with older labs:
+
+- `service.type=ClusterIP`
+- `persistence.hostPath.path=/var/local/devops-info-service-gitops`
+
 Apply and sync:
 
 ```powershell
+kubectl apply -f k8s/argocd/namespaces.yaml
 kubectl apply -f k8s/argocd/application.yaml
-argocd app get python-app
-argocd app sync python-app
-argocd app wait python-app --health --sync
+kubectl patch application python-app -n argocd --type merge -p '{"operation":{"sync":{"prune":true,"syncStrategy":{"hook":{}}}}}'
+kubectl get application python-app -n argocd
 ```
 
 What this manifest defines:
@@ -124,10 +138,10 @@ kubectl apply -f k8s/argocd/application-prod.yaml
 
 Environment differences:
 
-| Environment | Values file | Namespace | Replicas | Service type | Sync policy |
-|-------------|-------------|-----------|----------|--------------|-------------|
-| dev | `values-dev.yaml` | `dev` | 1 | `NodePort` | auto-sync + prune + self-heal |
-| prod | `values-prod.yaml` | `prod` | 3 | `LoadBalancer` | manual |
+| Environment | Values file | Namespace | Replicas | Service type | Extra overrides | Sync policy |
+|-------------|-------------|-----------|----------|--------------|-----------------|-------------|
+| dev | `values-dev.yaml` | `dev` | 1 | `NodePort` | `service.nodePort=30083`, dedicated hostPath | auto-sync + prune + self-heal |
+| prod | `values-prod.yaml` | `prod` | 3 | `ClusterIP` | `service.type=ClusterIP`, dedicated hostPath | manual |
 
 Why prod stays manual:
 
@@ -145,6 +159,21 @@ argocd app get python-app-prod
 kubectl get pods -n dev
 kubectl get pods -n prod
 ```
+
+Final observed status after sync:
+
+```text
+NAME              SYNC STATUS   HEALTH STATUS   REVISION                                   PROJECT
+python-app        Synced        Healthy         d6b0ea0bfbbcfcdf9234a1e7eece4ee76c068edf   default
+python-app-dev    Synced        Healthy         d6b0ea0bfbbcfcdf9234a1e7eece4ee76c068edf   default
+python-app-prod   Synced        Healthy         d6b0ea0bfbbcfcdf9234a1e7eece4ee76c068edf   default
+```
+
+Observed runtime state:
+
+- `python-app` in `devops-gitops`: 3 running pods, `ClusterIP` service
+- `python-app-dev` in `dev`: 1 running pod, `NodePort` service on `30083`
+- `python-app-prod` in `prod`: 3 running pods, `ClusterIP` service
 
 ## GitOps Workflow
 
@@ -172,6 +201,12 @@ Expected result:
 - `python-app-dev` should move back to `Synced` automatically
 - `python-app-prod` should show the new revision but stay manual until `argocd app sync python-app-prod`
 
+Observed behavior in this lab run:
+
+- after ArgoCD became healthy and the branch `lab13` was pushed, all three applications resolved to commit `d6b0ea0bfbbcfcdf9234a1e7eece4ee76c068edf`
+- `python-app-dev` auto-synced by itself after refresh
+- `python-app` and `python-app-prod` required a manual sync trigger through `Application.operation.sync`
+
 ## Self-Healing Evidence
 
 ### 1. Manual scale test
@@ -193,6 +228,14 @@ Expected behavior:
 - ArgoCD re-applies the Git state
 - replica count returns to `1` from `values-dev.yaml`
 
+Observed result:
+
+```text
+before=2026-04-23T01:04:48.4037123+03:00 replicas=1
+after_scale=2026-04-23T01:04:53.6103185+03:00 replicas=5 sync=OutOfSync
+after_selfheal=2026-04-23T01:05:18.8168123+03:00 replicas=1 sync=Synced
+```
+
 ### 2. Pod deletion test
 
 ```powershell
@@ -205,6 +248,13 @@ Expected behavior:
 - Kubernetes recreates the deleted pod through the ReplicaSet
 - this is Kubernetes self-healing, not ArgoCD sync logic
 
+Observed result:
+
+```text
+deleted_at=2026-04-23T01:05:26.6886612+03:00 pod=python-app-dev-mychart-6f75984cd4-ctl6s
+observed_at=2026-04-23T01:05:37.4388349+03:00 pods=python-app-dev-mychart-6f75984cd4-v69f8=Running;
+```
+
 ### 3. Configuration drift test
 
 ```powershell
@@ -213,10 +263,11 @@ argocd app diff python-app-dev
 argocd app get python-app-dev
 ```
 
-Expected behavior:
+Observed note:
 
-- ArgoCD shows the label diff
-- the label is removed on the next self-heal reconciliation
+- manual scale drift was reverted exactly as expected
+- extra metadata or env drift introduced directly with `kubectl` did not transition the application to `OutOfSync` during the test window on this local setup
+- because of that, the deployment was cleaned back to the desired env list manually after the experiment and I am not claiming a false positive self-heal result for that case
 
 Difference between healing mechanisms:
 

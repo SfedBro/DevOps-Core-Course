@@ -5,7 +5,7 @@ metadata:
   name: python-app-dev
   namespace: argocd
   finalizers:
-    - resources-finalizer.argocd.argoproj.io
+    - resources-finalizer.argocd.argoproj.io/foreground
 spec:
   project: default
   source:
@@ -16,6 +16,11 @@ spec:
       releaseName: python-app-dev
       valueFiles:
         - values-dev.yaml
+      parameters:
+        - name: service.nodePort
+          value: "30083"
+        - name: persistence.hostPath.path
+          value: /var/local/devops-info-service-dev
   destination:
     server: https://kubernetes.default.svc
     namespace: dev

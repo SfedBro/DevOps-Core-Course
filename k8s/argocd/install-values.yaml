@@ -5,3 +5,19 @@ configs:
 server:
   service:
     type: ClusterIP
+
+repoServer:
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+  readinessProbe:
+    initialDelaySeconds: 20
+    periodSeconds: 15
+    timeoutSeconds: 5
+    failureThreshold: 6
+  livenessProbe:
+    initialDelaySeconds: 30
+    periodSeconds: 20
+    timeoutSeconds: 5
+    failureThreshold: 6

@@ -5,7 +5,7 @@ metadata:
   name: python-app-prod
   namespace: argocd
   finalizers:
-    - resources-finalizer.argocd.argoproj.io
+    - resources-finalizer.argocd.argoproj.io/foreground
 spec:
   project: default
   source:
@@ -16,6 +16,11 @@ spec:
       releaseName: python-app-prod
       valueFiles:
         - values-prod.yaml
+      parameters:
+        - name: service.type
+          value: ClusterIP
+        - name: persistence.hostPath.path
+          value: /var/local/devops-info-service-prod
   destination:
     server: https://kubernetes.default.svc
     namespace: prod
