@@ -1,0 +1,127 @@
+Lab 13 runtime evidence - 2026-04-23T01:40:30
+
+=== Git revision ===
+COMMAND: git rev-parse HEAD
+e903808133af42f46c3a2c4302e2d268f4a6dfed
+
+
+=== ArgoCD CLI version ===
+COMMAND: argocd version --client
+argocd: v3.3.8+7ae7d2c
+  BuildDate: 2026-04-21T17:45:55Z
+  GitCommit: 7ae7d2cc723f5408b080a31263e705198af08613
+  GitTreeState: clean
+  GoVersion: go1.25.5
+  Compiler: gc
+  Platform: windows/amd64
+
+
+=== ArgoCD applications ===
+COMMAND: kubectl get applications -n argocd -o wide
+NAME              SYNC STATUS   HEALTH STATUS   REVISION                                   PROJECT
+python-app        Synced        Healthy         e903808133af42f46c3a2c4302e2d268f4a6dfed   default
+python-app-dev    Synced        Healthy         e903808133af42f46c3a2c4302e2d268f4a6dfed   default
+python-app-prod   Synced        Healthy         e903808133af42f46c3a2c4302e2d268f4a6dfed   default
+
+
+=== Argocd pods ===
+COMMAND: kubectl get pods -n argocd
+NAME                                               READY   STATUS    RESTARTS   AGE
+argocd-application-controller-0                    1/1     Running   0          57m
+argocd-applicationset-controller-8dc7d4cb-ntk9m    1/1     Running   0          57m
+argocd-dex-server-84878c988d-rthtj                 1/1     Running   0          57m
+argocd-notifications-controller-6f8f8b54f8-gg578   1/1     Running   0          57m
+argocd-redis-65f4b95795-mfncc                      1/1     Running   0          57m
+argocd-repo-server-64894d6d97-45p4f                1/1     Running   0          48m
+argocd-server-75cd4cd976-5lpjv                     1/1     Running   0          57m
+
+
+=== Environment deployments and services ===
+COMMAND: kubectl get deploy,svc in dev, prod, devops-gitops
+NAME                                     READY   UP-TO-DATE   AVAILABLE   AGE
+deployment.apps/python-app-dev-mychart   1/1     1            1           47m
+
+NAME                             TYPE       CLUSTER-IP     EXTERNAL-IP   PORT(S)        AGE
+service/python-app-dev-mychart   NodePort   10.96.92.165   <none>        80:30083/TCP   47m
+
+NAME                                      READY   UP-TO-DATE   AVAILABLE   AGE
+deployment.apps/python-app-prod-mychart   3/3     3            3           36m
+
+NAME                              TYPE        CLUSTER-IP      EXTERNAL-IP   PORT(S)   AGE
+service/python-app-prod-mychart   ClusterIP   10.96.169.234   <none>        80/TCP    36m
+
+NAME                                 READY   UP-TO-DATE   AVAILABLE   AGE
+deployment.apps/python-app-mychart   3/3     3            3           44m
+
+NAME                         TYPE        CLUSTER-IP     EXTERNAL-IP   PORT(S)   AGE
+service/python-app-mychart   ClusterIP   10.96.96.228   <none>        80/TCP    44m
+
+
+=== App access via port-forward ===
+COMMAND: kubectl port-forward -n dev svc/python-app-dev-mychart 18083:80; curl /health; curl /visits
+HEALTH={"status":"healthy","timestamp":"2026-04-22T22:40:36.582501+00:00","uptime_seconds":1677}
+VISITS={"visits":0,"file":"/data/visits"}
+
+
+=== Self-heal before scale ===
+COMMAND: kubectl get deployment and application status before scale
+replicas=1
+sync=Synced health=Healthy
+
+
+=== Manual scale drift ===
+COMMAND: kubectl scale deployment python-app-dev-mychart -n dev --replicas=5
+deployment.apps/python-app-dev-mychart scaled
+
+
+=== Status after manual scale ===
+COMMAND: kubectl get deployment and application status after manual scale
+replicas=5
+sync=Synced health=Healthy
+
+
+=== Status after self-heal window ===
+COMMAND: kubectl get deployment and application status after waiting for self-heal
+replicas=1
+sync=Synced health=Healthy
+
+
+=== Pod before deletion ===
+COMMAND: kubectl get pod in dev before deletion
+python-app-dev-mychart-56ff9856f7-k2dqh
+
+
+=== Delete pod ===
+COMMAND: kubectl delete pod python-app-dev-mychart-56ff9856f7-k2dqh -n dev
+pod "python-app-dev-mychart-56ff9856f7-k2dqh" deleted from dev namespace
+
+
+=== Pod after recreation ===
+COMMAND: kubectl get pods -n dev -l app.kubernetes.io/instance=python-app-dev
+NAME                                       READY   STATUS      RESTARTS   AGE
+python-app-dev-mychart-56ff9856f7-hrgqc    0/1     Running     0          5s
+python-app-dev-mychart-pre-install-fgs5c   0/1     Completed   0          16s
+
+
+=== Manual label drift ===
+COMMAND: kubectl label deployment python-app-dev-mychart -n dev drift=manual --overwrite
+deployment.apps/python-app-dev-mychart not labeled
+
+
+=== Label drift immediate status ===
+COMMAND: kubectl get deployment label drift and application sync status
+drift=manual
+sync=Synced
+
+
+=== Label drift after self-heal window ===
+COMMAND: kubectl get deployment label drift and application sync status after wait
+drift=manual
+sync=Synced
+
+
+=== ApplicationSet validation ===
+COMMAND: kubectl apply --dry-run=server -f k8s/argocd/applicationset.yaml
+applicationset.argoproj.io/python-app-set created (server dry run)
+
+
