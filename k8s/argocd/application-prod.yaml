@@ -1,0 +1,29 @@
+# Push branch `lab13` to origin before applying this manifest.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: python-app-prod
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io/foreground
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/SfedBro/DevOps-Core-Course.git
+    targetRevision: lab13
+    path: k8s/mychart
+    helm:
+      releaseName: python-app-prod
+      valueFiles:
+        - values-prod.yaml
+      parameters:
+        - name: service.type
+          value: ClusterIP
+        - name: persistence.hostPath.path
+          value: /var/local/devops-info-service-prod
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: prod
+  syncPolicy:
+    syncOptions:
+      - CreateNamespace=true

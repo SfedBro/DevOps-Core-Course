@@ -1,0 +1,32 @@
+# Push branch `lab13` to origin before applying this manifest.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: python-app-dev
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io/foreground
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/SfedBro/DevOps-Core-Course.git
+    targetRevision: lab13
+    path: k8s/mychart
+    helm:
+      releaseName: python-app-dev
+      valueFiles:
+        - values-dev.yaml
+      parameters:
+        - name: service.nodePort
+          value: "30083"
+        - name: persistence.hostPath.path
+          value: /var/local/devops-info-service-dev
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: dev
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
