@@ -1,0 +1,256 @@
+Lab 14 rollout flow evidence - 2026-04-30T20:39:01
+
+=== Mark canary Helm release deployed ===
+COMMAND: helm upgrade --install rollout-canary ... --namespace devops-rollouts
+Release "rollout-canary" has been upgraded. Happy Helming!
+NAME: rollout-canary
+LAST DEPLOYED: Thu Apr 30 20:39:01 2026
+NAMESPACE: devops-rollouts
+STATUS: deployed
+REVISION: 2
+DESCRIPTION: Upgrade complete
+TEST SUITE: None
+NOTES:
+Thank you for installing mychart.
+
+Release name: rollout-canary
+Namespace: devops-rollouts
+The service uses NodePort.
+
+Check the service:
+  kubectl get svc -n devops-rollouts rollout-canary-mychart
+
+For local access:
+  kubectl port-forward svc/rollout-canary-mychart 18081:80 -n devops-rollouts
+  curl http://localhost:18081/health
+
+
+=== Initial canary status ===
+COMMAND: kubectl argo rollouts get rollout rollout-canary-mychart -n devops-rollouts --no-color
+Name:            rollout-canary-mychart
+Namespace:       devops-rollouts
+Status:          ✔ Healthy
+Strategy:        Canary
+  Step:          9/9
+  SetWeight:     100
+  ActualWeight:  100
+Images:          sfedbro/app_python:lab12 (stable)
+Replicas:
+  Desired:       5
+  Current:       5
+  Updated:       5
+  Ready:         5
+  Available:     5
+
+NAME                                                KIND        STATUS     AGE   INFO
+⟳ rollout-canary-mychart                            Rollout     ✔ Healthy  6m5s  
+└──# revision:1                                                                  
+   └──⧉ rollout-canary-mychart-6f4bdf6bbc           ReplicaSet  ✔ Healthy  6m5s  stable
+      ├──□ rollout-canary-mychart-6f4bdf6bbc-88pfq  Pod         ✔ Running  6m5s  ready:1/1
+      ├──□ rollout-canary-mychart-6f4bdf6bbc-9qflm  Pod         ✔ Running  6m5s  ready:1/1
+      ├──□ rollout-canary-mychart-6f4bdf6bbc-hkb9m  Pod         ✔ Running  6m5s  ready:1/1
+      ├──□ rollout-canary-mychart-6f4bdf6bbc-k6rmc  Pod         ✔ Running  6m5s  ready:1/1
+      └──□ rollout-canary-mychart-6f4bdf6bbc-lnv5f  Pod         ✔ Running  6m5s  ready:1/1
+
+
+=== Trigger canary update ===
+COMMAND: helm upgrade rollout-canary ... --set logLevel=warn --set configMap.env.data.LOG_LEVEL=warn
+Release "rollout-canary" has been upgraded. Happy Helming!
+NAME: rollout-canary
+LAST DEPLOYED: Thu Apr 30 20:39:02 2026
+NAMESPACE: devops-rollouts
+STATUS: deployed
+REVISION: 3
+DESCRIPTION: Upgrade complete
+TEST SUITE: None
+NOTES:
+Thank you for installing mychart.
+
+Release name: rollout-canary
+Namespace: devops-rollouts
+The service uses NodePort.
+
+Check the service:
+  kubectl get svc -n devops-rollouts rollout-canary-mychart
+
+For local access:
+  kubectl port-forward svc/rollout-canary-mychart 18081:80 -n devops-rollouts
+  curl http://localhost:18081/health
+
+
+=== Canary paused at 20 percent ===
+COMMAND: kubectl argo rollouts get rollout rollout-canary-mychart -n devops-rollouts --no-color
+Name:            rollout-canary-mychart
+Namespace:       devops-rollouts
+Status:          ॥ Paused
+Message:         CanaryPauseStep
+Strategy:        Canary
+  Step:          1/9
+  SetWeight:     20
+  ActualWeight:  20
+Images:          sfedbro/app_python:lab12 (canary, stable)
+Replicas:
+  Desired:       5
+  Current:       5
+  Updated:       1
+  Ready:         5
+  Available:     5
+
+NAME                                                KIND        STATUS     AGE    INFO
+⟳ rollout-canary-mychart                            Rollout     ॥ Paused   6m18s  
+├──# revision:2                                                                   
+│  └──⧉ rollout-canary-mychart-776cc8668f           ReplicaSet  ✔ Healthy  12s    canary
+│     └──□ rollout-canary-mychart-776cc8668f-g8vwm  Pod         ✔ Running  12s    ready:1/1
+└──# revision:1                                                                   
+   └──⧉ rollout-canary-mychart-6f4bdf6bbc           ReplicaSet  ✔ Healthy  6m18s  stable
+      ├──□ rollout-canary-mychart-6f4bdf6bbc-88pfq  Pod         ✔ Running  6m18s  ready:1/1
+      ├──□ rollout-canary-mychart-6f4bdf6bbc-9qflm  Pod         ✔ Running  6m18s  ready:1/1
+      ├──□ rollout-canary-mychart-6f4bdf6bbc-hkb9m  Pod         ✔ Running  6m18s  ready:1/1
+      └──□ rollout-canary-mychart-6f4bdf6bbc-k6rmc  Pod         ✔ Running  6m18s  ready:1/1
+
+
+=== Promote canary past manual pause ===
+COMMAND: kubectl argo rollouts promote rollout-canary-mychart -n devops-rollouts
+rollout 'rollout-canary-mychart' promoted
+
+
+=== Wait canary completion ===
+COMMAND: kubectl argo rollouts status rollout-canary-mychart -n devops-rollouts --timeout 180s
+Progressing - more replicas need to be updated
+Paused - CanaryPauseStep
+Progressing - more replicas need to be updated
+Paused - CanaryPauseStep
+Progressing - more replicas need to be updated
+Paused - CanaryPauseStep
+Progressing - more replicas need to be updated
+Progressing - updated replicas are still becoming available
+Progressing - waiting for all steps to complete
+Healthy
+
+
+=== Canary after automatic steps ===
+COMMAND: kubectl argo rollouts get rollout rollout-canary-mychart -n devops-rollouts --no-color
+Name:            rollout-canary-mychart
+Namespace:       devops-rollouts
+Status:          ✔ Healthy
+Strategy:        Canary
+  Step:          9/9
+  SetWeight:     100
+  ActualWeight:  100
+Images:          sfedbro/app_python:lab12 (stable)
+Replicas:
+  Desired:       5
+  Current:       5
+  Updated:       5
+  Ready:         5
+  Available:     5
+
+NAME                                                KIND        STATUS        AGE    INFO
+⟳ rollout-canary-mychart                            Rollout     ✔ Healthy     8m26s  
+├──# revision:2                                                                      
+│  └──⧉ rollout-canary-mychart-776cc8668f           ReplicaSet  ✔ Healthy     2m20s  stable
+│     ├──□ rollout-canary-mychart-776cc8668f-g8vwm  Pod         ✔ Running     2m20s  ready:1/1
+│     ├──□ rollout-canary-mychart-776cc8668f-n7cm6  Pod         ✔ Running     2m8s   ready:1/1
+│     ├──□ rollout-canary-mychart-776cc8668f-96cfz  Pod         ✔ Running     88s    ready:1/1
+│     ├──□ rollout-canary-mychart-776cc8668f-sx4rs  Pod         ✔ Running     49s    ready:1/1
+│     └──□ rollout-canary-mychart-776cc8668f-67r42  Pod         ✔ Running     10s    ready:1/1
+└──# revision:1                                                                      
+   └──⧉ rollout-canary-mychart-6f4bdf6bbc           ReplicaSet  • ScaledDown  8m26s  
+
+
+=== Trigger canary update for abort ===
+COMMAND: helm upgrade rollout-canary ... --set logLevel=error --set configMap.env.data.LOG_LEVEL=error
+Release "rollout-canary" has been upgraded. Happy Helming!
+NAME: rollout-canary
+LAST DEPLOYED: Thu Apr 30 20:41:23 2026
+NAMESPACE: devops-rollouts
+STATUS: deployed
+REVISION: 4
+DESCRIPTION: Upgrade complete
+TEST SUITE: None
+NOTES:
+Thank you for installing mychart.
+
+Release name: rollout-canary
+Namespace: devops-rollouts
+The service uses NodePort.
+
+Check the service:
+  kubectl get svc -n devops-rollouts rollout-canary-mychart
+
+For local access:
+  kubectl port-forward svc/rollout-canary-mychart 18081:80 -n devops-rollouts
+  curl http://localhost:18081/health
+
+
+=== Canary before abort ===
+COMMAND: kubectl argo rollouts get rollout rollout-canary-mychart -n devops-rollouts --no-color
+Name:            rollout-canary-mychart
+Namespace:       devops-rollouts
+Status:          ॥ Paused
+Message:         CanaryPauseStep
+Strategy:        Canary
+  Step:          1/9
+  SetWeight:     20
+  ActualWeight:  20
+Images:          sfedbro/app_python:lab12 (canary, stable)
+Replicas:
+  Desired:       5
+  Current:       5
+  Updated:       1
+  Ready:         5
+  Available:     5
+
+NAME                                                KIND        STATUS        AGE    INFO
+⟳ rollout-canary-mychart                            Rollout     ॥ Paused      8m38s  
+├──# revision:3                                                                      
+│  └──⧉ rollout-canary-mychart-5999856b65           ReplicaSet  ✔ Healthy     12s    canary
+│     └──□ rollout-canary-mychart-5999856b65-95mhd  Pod         ✔ Running     12s    ready:1/1
+├──# revision:2                                                                      
+│  └──⧉ rollout-canary-mychart-776cc8668f           ReplicaSet  ✔ Healthy     2m32s  stable
+│     ├──□ rollout-canary-mychart-776cc8668f-g8vwm  Pod         ✔ Running     2m32s  ready:1/1
+│     ├──□ rollout-canary-mychart-776cc8668f-n7cm6  Pod         ✔ Running     2m20s  ready:1/1
+│     ├──□ rollout-canary-mychart-776cc8668f-96cfz  Pod         ✔ Running     100s   ready:1/1
+│     └──□ rollout-canary-mychart-776cc8668f-sx4rs  Pod         ✔ Running     61s    ready:1/1
+└──# revision:1                                                                      
+   └──⧉ rollout-canary-mychart-6f4bdf6bbc           ReplicaSet  • ScaledDown  8m38s  
+
+
+=== Abort canary rollout ===
+COMMAND: kubectl argo rollouts abort rollout-canary-mychart -n devops-rollouts
+rollout 'rollout-canary-mychart' aborted
+
+
+=== Canary after abort ===
+COMMAND: kubectl argo rollouts get rollout rollout-canary-mychart -n devops-rollouts --no-color
+Name:            rollout-canary-mychart
+Namespace:       devops-rollouts
+Status:          ✖ Degraded
+Message:         RolloutAborted: Rollout aborted update to revision 3
+Strategy:        Canary
+  Step:          0/9
+  SetWeight:     0
+  ActualWeight:  0
+Images:          sfedbro/app_python:lab12 (stable)
+Replicas:
+  Desired:       5
+  Current:       5
+  Updated:       0
+  Ready:         4
+  Available:     4
+
+NAME                                                KIND        STATUS         AGE    INFO
+⟳ rollout-canary-mychart                            Rollout     ✖ Degraded     8m47s  
+├──# revision:3                                                                       
+│  └──⧉ rollout-canary-mychart-5999856b65           ReplicaSet  • ScaledDown   21s    canary
+├──# revision:2                                                                       
+│  └──⧉ rollout-canary-mychart-776cc8668f           ReplicaSet  ◌ Progressing  2m41s  stable
+│     ├──□ rollout-canary-mychart-776cc8668f-g8vwm  Pod         ✔ Running      2m41s  ready:1/1
+│     ├──□ rollout-canary-mychart-776cc8668f-n7cm6  Pod         ✔ Running      2m29s  ready:1/1
+│     ├──□ rollout-canary-mychart-776cc8668f-96cfz  Pod         ✔ Running      109s   ready:1/1
+│     ├──□ rollout-canary-mychart-776cc8668f-sx4rs  Pod         ✔ Running      70s    ready:1/1
+│     └──□ rollout-canary-mychart-776cc8668f-5rrqj  Pod         ✔ Running      8s     ready:0/1
+└──# revision:1                                                                       
+   └──⧉ rollout-canary-mychart-6f4bdf6bbc           ReplicaSet  • ScaledDown   8m47s  
+
+

@@ -1,0 +1,61 @@
+replicaCount: 5
+environment: canary
+logLevel: debug
+
+image:
+  tag: lab12
+  pullPolicy: Always
+
+service:
+  type: NodePort
+  nodePort: 30085
+
+rollout:
+  enabled: true
+  strategy: canary
+  canary:
+    steps:
+      - setWeight: 20
+      - pause: {}
+      - setWeight: 40
+      - pause:
+          duration: 30s
+      - setWeight: 60
+      - pause:
+          duration: 30s
+      - setWeight: 80
+      - pause:
+          duration: 30s
+      - setWeight: 100
+env:
+  - name: HOST
+    value: "0.0.0.0"
+  - name: PORT
+    value: "5000"
+  - name: DEBUG
+    value: "true"
+  - name: APP_ENV
+    value: "canary"
+  - name: VISITS_FILE
+    value: "/data/visits"
+  - name: CONFIG_FILE
+    value: "/config/config.json"
+
+configMap:
+  env:
+    data:
+      APP_CONFIG_MODE: configmap
+      LOG_LEVEL: debug
+      FEATURE_VISITS: "true"
+
+persistence:
+  hostPath:
+    path: /var/local/devops-info-service-rollout-canary
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 64Mi
+  limits:
+    cpu: 100m
+    memory: 128Mi

@@ -1,0 +1,132 @@
+Lab 14 blue-green fixed evidence - 2026-04-30T20:43:37
+
+=== Upgrade blue-green after service selector fix ===
+COMMAND: helm upgrade rollout-bluegreen ... --set logLevel=debug --set configMap.env.data.LOG_LEVEL=debug
+Release "rollout-bluegreen" has been upgraded. Happy Helming!
+NAME: rollout-bluegreen
+LAST DEPLOYED: Thu Apr 30 20:43:37 2026
+NAMESPACE: devops-rollouts
+STATUS: deployed
+REVISION: 3
+DESCRIPTION: Upgrade complete
+TEST SUITE: None
+NOTES:
+Thank you for installing mychart.
+
+Release name: rollout-bluegreen
+Namespace: devops-rollouts
+The service type is ClusterIP.
+
+Check the service:
+  kubectl get svc -n devops-rollouts rollout-bluegreen-mychart
+
+
+=== Blue-green preview waiting for promotion ===
+COMMAND: kubectl argo rollouts get rollout rollout-bluegreen-mychart -n devops-rollouts --no-color
+Name:            rollout-bluegreen-mychart
+Namespace:       devops-rollouts
+Status:          ॥ Paused
+Message:         BlueGreenPause
+Strategy:        BlueGreen
+Images:          sfedbro/app_python:lab12 (active, preview, stable)
+Replicas:
+  Desired:       3
+  Current:       6
+  Updated:       3
+  Ready:         3
+  Available:     3
+
+NAME                                                   KIND        STATUS     AGE  INFO
+⟳ rollout-bluegreen-mychart                            Rollout     ॥ Paused   92s  
+├──# revision:2                                                                    
+│  └──⧉ rollout-bluegreen-mychart-56cbc5dbb            ReplicaSet  ✔ Healthy  79s  preview
+│     ├──□ rollout-bluegreen-mychart-56cbc5dbb-q5fz2   Pod         ✔ Running  79s  ready:1/1
+│     ├──□ rollout-bluegreen-mychart-56cbc5dbb-wq52q   Pod         ✔ Running  79s  ready:1/1
+│     └──□ rollout-bluegreen-mychart-56cbc5dbb-xkngd   Pod         ✔ Running  79s  ready:1/1
+└──# revision:1                                                                    
+   └──⧉ rollout-bluegreen-mychart-7988cbf8d6           ReplicaSet  ✔ Healthy  92s  stable,active
+      ├──□ rollout-bluegreen-mychart-7988cbf8d6-7kr48  Pod         ✔ Running  92s  ready:1/1
+      ├──□ rollout-bluegreen-mychart-7988cbf8d6-cbz6j  Pod         ✔ Running  92s  ready:1/1
+      └──□ rollout-bluegreen-mychart-7988cbf8d6-hqmh5  Pod         ✔ Running  92s  ready:1/1
+
+
+=== Services before promotion ===
+COMMAND: kubectl get svc -n devops-rollouts rollout-bluegreen-mychart rollout-bluegreen-mychart-preview -o wide
+NAME                                TYPE        CLUSTER-IP     EXTERNAL-IP   PORT(S)   AGE   SELECTOR
+rollout-bluegreen-mychart           ClusterIP   10.96.128.2    <none>        80/TCP    92s   app.kubernetes.io/instance=rollout-bluegreen,app.kubernetes.io/name=mychart,rollouts-pod-template-hash=7988cbf8d6
+rollout-bluegreen-mychart-preview   ClusterIP   10.96.229.42   <none>        80/TCP    92s   app.kubernetes.io/instance=rollout-bluegreen,app.kubernetes.io/name=mychart,rollouts-pod-template-hash=56cbc5dbb
+
+
+=== Promote blue-green rollout ===
+COMMAND: kubectl argo rollouts promote rollout-bluegreen-mychart -n devops-rollouts
+rollout 'rollout-bluegreen-mychart' promoted
+
+
+=== Blue-green after promotion ===
+COMMAND: kubectl argo rollouts get rollout rollout-bluegreen-mychart -n devops-rollouts --no-color
+Name:            rollout-bluegreen-mychart
+Namespace:       devops-rollouts
+Status:          ✔ Healthy
+Strategy:        BlueGreen
+Images:          sfedbro/app_python:lab12 (active, stable)
+Replicas:
+  Desired:       3
+  Current:       6
+  Updated:       3
+  Ready:         3
+  Available:     3
+
+NAME                                                   KIND        STATUS     AGE   INFO
+⟳ rollout-bluegreen-mychart                            Rollout     ✔ Healthy  103s  
+├──# revision:2                                                                     
+│  └──⧉ rollout-bluegreen-mychart-56cbc5dbb            ReplicaSet  ✔ Healthy  90s   stable,active
+│     ├──□ rollout-bluegreen-mychart-56cbc5dbb-q5fz2   Pod         ✔ Running  90s   ready:1/1
+│     ├──□ rollout-bluegreen-mychart-56cbc5dbb-wq52q   Pod         ✔ Running  90s   ready:1/1
+│     └──□ rollout-bluegreen-mychart-56cbc5dbb-xkngd   Pod         ✔ Running  90s   ready:1/1
+└──# revision:1                                                                     
+   └──⧉ rollout-bluegreen-mychart-7988cbf8d6           ReplicaSet  ✔ Healthy  103s  delay:19s
+      ├──□ rollout-bluegreen-mychart-7988cbf8d6-7kr48  Pod         ✔ Running  103s  ready:1/1
+      ├──□ rollout-bluegreen-mychart-7988cbf8d6-cbz6j  Pod         ✔ Running  103s  ready:1/1
+      └──□ rollout-bluegreen-mychart-7988cbf8d6-hqmh5  Pod         ✔ Running  103s  ready:1/1
+
+
+=== Services after promotion ===
+COMMAND: kubectl get svc -n devops-rollouts rollout-bluegreen-mychart rollout-bluegreen-mychart-preview -o wide
+NAME                                TYPE        CLUSTER-IP     EXTERNAL-IP   PORT(S)   AGE    SELECTOR
+rollout-bluegreen-mychart           ClusterIP   10.96.128.2    <none>        80/TCP    103s   app.kubernetes.io/instance=rollout-bluegreen,app.kubernetes.io/name=mychart,rollouts-pod-template-hash=56cbc5dbb
+rollout-bluegreen-mychart-preview   ClusterIP   10.96.229.42   <none>        80/TCP    103s   app.kubernetes.io/instance=rollout-bluegreen,app.kubernetes.io/name=mychart,rollouts-pod-template-hash=56cbc5dbb
+
+
+=== Undo blue-green rollout ===
+COMMAND: kubectl argo rollouts undo rollout-bluegreen-mychart -n devops-rollouts
+rollout 'rollout-bluegreen-mychart' undo
+
+
+=== Blue-green after undo rollback ===
+COMMAND: kubectl argo rollouts get rollout rollout-bluegreen-mychart -n devops-rollouts --no-color
+Name:            rollout-bluegreen-mychart
+Namespace:       devops-rollouts
+Status:          ✔ Healthy
+Strategy:        BlueGreen
+Images:          sfedbro/app_python:lab12 (active, stable)
+Replicas:
+  Desired:       3
+  Current:       6
+  Updated:       3
+  Ready:         3
+  Available:     3
+
+NAME                                                   KIND        STATUS     AGE   INFO
+⟳ rollout-bluegreen-mychart                            Rollout     ✔ Healthy  113s  
+├──# revision:3                                                                     
+│  └──⧉ rollout-bluegreen-mychart-7988cbf8d6           ReplicaSet  ✔ Healthy  113s  stable,active
+│     ├──□ rollout-bluegreen-mychart-7988cbf8d6-7kr48  Pod         ✔ Running  113s  ready:1/1
+│     ├──□ rollout-bluegreen-mychart-7988cbf8d6-cbz6j  Pod         ✔ Running  113s  ready:1/1
+│     └──□ rollout-bluegreen-mychart-7988cbf8d6-hqmh5  Pod         ✔ Running  113s  ready:1/1
+└──# revision:2                                                                     
+   └──⧉ rollout-bluegreen-mychart-56cbc5dbb            ReplicaSet  ✔ Healthy  100s  delay:19s
+      ├──□ rollout-bluegreen-mychart-56cbc5dbb-q5fz2   Pod         ✔ Running  100s  ready:1/1
+      ├──□ rollout-bluegreen-mychart-56cbc5dbb-wq52q   Pod         ✔ Running  100s  ready:1/1
+      └──□ rollout-bluegreen-mychart-56cbc5dbb-xkngd   Pod         ✔ Running  100s  ready:1/1
+
+

@@ -1,0 +1,53 @@
+replicaCount: 3
+environment: bluegreen
+logLevel: info
+
+image:
+  tag: lab12
+  pullPolicy: Always
+
+service:
+  type: ClusterIP
+  nodePort: null
+
+rollout:
+  enabled: true
+  strategy: blueGreen
+  blueGreen:
+    autoPromotionEnabled: false
+    scaleDownDelaySeconds: 30
+    previewService:
+      enabled: true
+      type: ClusterIP
+env:
+  - name: HOST
+    value: "0.0.0.0"
+  - name: PORT
+    value: "5000"
+  - name: DEBUG
+    value: "false"
+  - name: APP_ENV
+    value: "bluegreen"
+  - name: VISITS_FILE
+    value: "/data/visits"
+  - name: CONFIG_FILE
+    value: "/config/config.json"
+
+configMap:
+  env:
+    data:
+      APP_CONFIG_MODE: configmap
+      LOG_LEVEL: info
+      FEATURE_VISITS: "true"
+
+persistence:
+  hostPath:
+    path: /var/local/devops-info-service-rollout-bluegreen
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 250m
+    memory: 256Mi
