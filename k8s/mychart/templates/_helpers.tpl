@@ -77,6 +77,13 @@ PVC/PV name for persistent application data.
 {{- end -}}
 
 {{/*
+Preview service name for blue-green rollouts.
+*/}}
+{{- define "mychart.previewServiceName" -}}
+{{- printf "%s-preview" (include "mychart.fullname" .) | trunc 63 | trimSuffix "-" -}}
+{{- end -}}
+
+{{/*
 Named template for regular environment variables.
 */}}
 {{- define "mychart.envVars" -}}

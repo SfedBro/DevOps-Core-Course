@@ -1,0 +1,22 @@
+{{- if and .Values.rollout.enabled (eq .Values.rollout.strategy "blueGreen") .Values.rollout.blueGreen.previewService.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "mychart.previewServiceName" . }}
+  labels:
+    {{- include "mychart.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.rollout.blueGreen.previewService.type }}
+  selector:
+    {{- $existingService := lookup "v1" "Service" .Release.Namespace (include "mychart.previewServiceName" .) }}
+    {{- if $existingService }}
+    {{- toYaml $existingService.spec.selector | nindent 4 }}
+    {{- else }}
+    {{- include "mychart.selectorLabels" . | nindent 4 }}
+    {{- end }}
+  ports:
+    - name: http
+      protocol: TCP
+      port: {{ .Values.service.port }}
+      targetPort: http
+{{- end }}

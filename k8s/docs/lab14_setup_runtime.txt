@@ -1,0 +1,66 @@
+Lab 14 setup evidence - 2026-04-30
+
+=== Argo Rollouts controller and dashboard ===
+COMMAND: kubectl get pods,svc -n argo-rollouts
+NAME                                           READY   STATUS    RESTARTS   AGE
+pod/argo-rollouts-5cf9b959f9-2cc7n             1/1     Running   0          16m
+pod/argo-rollouts-dashboard-7546666c98-49cxv   1/1     Running   0          16m
+
+NAME                              TYPE        CLUSTER-IP     EXTERNAL-IP   PORT(S)    AGE
+service/argo-rollouts-dashboard   ClusterIP   10.96.138.60   <none>        3100/TCP   16m
+service/argo-rollouts-metrics     ClusterIP   10.96.94.143   <none>        8090/TCP   16m
+
+
+=== Argo Rollouts kubectl plugin ===
+COMMAND: kubectl argo rollouts version
+kubectl-argo-rollouts: v1.9.0+838d4e7
+  BuildDate: 2026-03-20T21:15:27Z
+  GitCommit: 838d4e792be666ec11bd0c80331e0c5511b5010e
+  GitTreeState: clean
+  GoVersion: go1.24.13
+  Compiler: gc
+  Platform: windows/amd64
+
+
+=== Helm lint ===
+COMMAND: helm lint k8s/mychart
+==> Linting k8s/mychart
+[INFO] Chart.yaml: icon is recommended
+
+1 chart(s) linted, 0 chart(s) failed
+
+
+=== Canary template check ===
+COMMAND: helm template rollout-canary k8s/mychart -f k8s/mychart/values-rollout-canary.yaml --namespace devops-rollouts
+kind: Rollout
+strategy:
+  canary:
+    steps:
+      - setWeight: 20
+      - pause: {}
+      - setWeight: 40
+      - pause:
+          duration: 30s
+      - setWeight: 60
+      - pause:
+          duration: 30s
+      - setWeight: 80
+      - pause:
+          duration: 30s
+      - setWeight: 100
+
+
+=== Blue-green template check ===
+COMMAND: helm template rollout-bluegreen k8s/mychart -f k8s/mychart/values-rollout-bluegreen.yaml --namespace devops-rollouts
+kind: Service
+metadata:
+  name: rollout-bluegreen-mychart-preview
+kind: Service
+metadata:
+  name: rollout-bluegreen-mychart
+kind: Rollout
+strategy:
+  blueGreen:
+    activeService: rollout-bluegreen-mychart
+    previewService: rollout-bluegreen-mychart-preview
+    autoPromotionEnabled: false
