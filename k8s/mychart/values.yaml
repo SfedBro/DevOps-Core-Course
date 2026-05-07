@@ -45,6 +45,12 @@ rollout:
     previewService:
       enabled: true
       type: ClusterIP
+
+statefulset:
+  enabled: false
+  podManagementPolicy: OrderedReady
+  updateStrategy:
+    type: RollingUpdate
 env:
   - name: HOST
     value: "0.0.0.0"

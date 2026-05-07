@@ -1,0 +1,73 @@
+Lab 15 runtime evidence - 2026-05-07
+
+COMMAND: kubectl get storageclass
+NAME                 PROVISIONER             RECLAIMPOLICY   VOLUMEBINDINGMODE      ALLOWVOLUMEEXPANSION   AGE
+standard (default)   rancher.io/local-path   Delete          WaitForFirstConsumer   false                  43d
+
+COMMAND: helm lint k8s/mychart
+==> Linting k8s/mychart
+[INFO] Chart.yaml: icon is recommended
+
+1 chart(s) linted, 0 chart(s) failed
+
+COMMAND: rendered kind counts for stateful values
+kind: StatefulSet = 1
+kind: Deployment = 0
+kind: Rollout = 0
+kind: PersistentVolume = 0
+kind: PersistentVolumeClaim = 0
+clusterIP: None = 1
+volumeClaimTemplates: = 1
+
+COMMAND: helm upgrade --install lab15 k8s/mychart -f k8s/mychart/values-statefulset.yaml --namespace devops-lab15 --create-namespace --wait --wait-for-jobs --timeout 5m
+Release "lab15" does not exist. Installing it now.
+NAME: lab15
+LAST DEPLOYED: Thu May  7 21:22:13 2026
+NAMESPACE: devops-lab15
+STATUS: deployed
+REVISION: 1
+DESCRIPTION: Install complete
+
+COMMAND: kubectl get po,sts,svc,pvc -n devops-lab15 -o wide
+NAME                  READY   STATUS    RESTARTS   AGE     IP            NODE
+pod/lab15-mychart-0   1/1     Running   0          2m16s   10.244.0.42   lab09-control-plane
+pod/lab15-mychart-1   1/1     Running   0          2m4s    10.244.0.44   lab09-control-plane
+pod/lab15-mychart-2   1/1     Running   0          108s    10.244.0.46   lab09-control-plane
+
+NAME                             READY   AGE     CONTAINERS   IMAGES
+statefulset.apps/lab15-mychart   3/3     2m16s   mychart      sfedbro/app_python:lab12
+
+NAME                             TYPE        CLUSTER-IP      PORT(S)   SELECTOR
+service/lab15-mychart            ClusterIP   10.96.109.152   80/TCP    app.kubernetes.io/instance=lab15,app.kubernetes.io/name=mychart
+service/lab15-mychart-headless   ClusterIP   None            80/TCP    app.kubernetes.io/instance=lab15,app.kubernetes.io/name=mychart
+
+NAME                                             STATUS   VOLUME                                     CAPACITY   ACCESS MODES   STORAGECLASS
+persistentvolumeclaim/app-data-lab15-mychart-0   Bound    pvc-2ea07d22-556a-4317-aea1-a384d236f8c8   100Mi      RWO            standard
+persistentvolumeclaim/app-data-lab15-mychart-1   Bound    pvc-ad2adc75-9873-4254-a513-eff0e2daa5a1   100Mi      RWO            standard
+persistentvolumeclaim/app-data-lab15-mychart-2   Bound    pvc-aa068c90-9c88-4db3-a4fd-e6d226241cac   100Mi      RWO            standard
+
+COMMAND: kubectl exec -n devops-lab15 lab15-mychart-0 -- python -c "import socket; print(socket.gethostbyname('lab15-mychart-1.lab15-mychart-headless.devops-lab15.svc.cluster.local'))"
+10.244.0.44
+
+COMMAND: kubectl exec -n devops-lab15 lab15-mychart-0 -- python -c "import urllib.request; urls=['http://lab15-mychart-0.lab15-mychart-headless.devops-lab15.svc.cluster.local:5000/','http://lab15-mychart-0.lab15-mychart-headless.devops-lab15.svc.cluster.local:5000/','http://lab15-mychart-1.lab15-mychart-headless.devops-lab15.svc.cluster.local:5000/']; [print(urllib.request.urlopen(u).read().decode()) for u in urls]"
+Captured response excerpts:
+pod-0 / visits.count = 1
+pod-0 / visits.count = 2
+pod-1 / visits.count = 1
+
+COMMAND: kubectl exec -n devops-lab15 lab15-mychart-0 -- python -c "import urllib.request; urls=['http://lab15-mychart-0.lab15-mychart-headless.devops-lab15.svc.cluster.local:5000/visits','http://lab15-mychart-1.lab15-mychart-headless.devops-lab15.svc.cluster.local:5000/visits']; [print(u, urllib.request.urlopen(u).read().decode()) for u in urls]"
+http://lab15-mychart-0.lab15-mychart-headless.devops-lab15.svc.cluster.local:5000/visits {"visits":2,"file":"/data/visits"}
+http://lab15-mychart-1.lab15-mychart-headless.devops-lab15.svc.cluster.local:5000/visits {"visits":1,"file":"/data/visits"}
+
+COMMAND: persistence after deleting pod lab15-mychart-0
+kubectl exec -n devops-lab15 lab15-mychart-0 -- cat /data/visits
+2
+kubectl delete pod lab15-mychart-0 -n devops-lab15
+pod "lab15-mychart-0" deleted from devops-lab15 namespace
+kubectl wait --for=condition=Ready pod/lab15-mychart-0 -n devops-lab15 --timeout=180s
+pod/lab15-mychart-0 condition met
+kubectl exec -n devops-lab15 lab15-mychart-0 -- cat /data/visits
+2
+kubectl get pod lab15-mychart-0 -n devops-lab15 -o wide
+NAME              READY   STATUS    RESTARTS   AGE   IP            NODE
+lab15-mychart-0   1/1     Running   0          13s   10.244.0.48   lab09-control-plane

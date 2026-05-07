@@ -1,0 +1,59 @@
+replicaCount: 3
+environment: stateful
+logLevel: info
+
+image:
+  tag: lab12
+  pullPolicy: Always
+
+service:
+  type: ClusterIP
+  nodePort: null
+
+rollout:
+  enabled: false
+
+statefulset:
+  enabled: true
+  podManagementPolicy: OrderedReady
+  updateStrategy:
+    type: RollingUpdate
+
+env:
+  - name: HOST
+    value: "0.0.0.0"
+  - name: PORT
+    value: "5000"
+  - name: DEBUG
+    value: "false"
+  - name: APP_ENV
+    value: "stateful"
+  - name: VISITS_FILE
+    value: "/data/visits"
+  - name: CONFIG_FILE
+    value: "/config/config.json"
+
+configMap:
+  env:
+    data:
+      APP_CONFIG_MODE: configmap
+      LOG_LEVEL: info
+      FEATURE_VISITS: "true"
+
+persistence:
+  enabled: true
+  mountPath: /data
+  size: 100Mi
+  accessModes:
+    - ReadWriteOnce
+  storageClass: standard
+  hostPath:
+    enabled: false
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 250m
+    memory: 256Mi

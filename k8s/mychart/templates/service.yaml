@@ -8,7 +8,7 @@ spec:
   type: {{ .Values.service.type }}
   selector:
     {{- $existingService := lookup "v1" "Service" .Release.Namespace (include "mychart.fullname" .) }}
-    {{- if and .Values.rollout.enabled (eq .Values.rollout.strategy "blueGreen") $existingService }}
+    {{- if and .Values.rollout.enabled (not .Values.statefulset.enabled) (eq .Values.rollout.strategy "blueGreen") $existingService }}
     {{- toYaml $existingService.spec.selector | nindent 4 }}
     {{- else }}
     {{- include "mychart.selectorLabels" . | nindent 4 }}

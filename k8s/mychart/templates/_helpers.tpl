@@ -84,6 +84,13 @@ Preview service name for blue-green rollouts.
 {{- end -}}
 
 {{/*
+Headless service name for StatefulSet pod DNS.
+*/}}
+{{- define "mychart.headlessServiceName" -}}
+{{- printf "%s-headless" (include "mychart.fullname" .) | trunc 63 | trimSuffix "-" -}}
+{{- end -}}
+
+{{/*
 Named template for regular environment variables.
 */}}
 {{- define "mychart.envVars" -}}
