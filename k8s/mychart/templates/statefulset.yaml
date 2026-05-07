@@ -1,19 +1,17 @@
+{{- if .Values.statefulset.enabled }}
 {{- $envConfigEnabled := and .Values.configMap.enabled .Values.configMap.env.enabled -}}
-{{- if and (not .Values.rollout.enabled) (not .Values.statefulset.enabled) }}
 apiVersion: apps/v1
-kind: Deployment
+kind: StatefulSet
 metadata:
   name: {{ include "mychart.fullname" . }}
   labels:
     {{- include "mychart.labels" . | nindent 4 }}
 spec:
+  serviceName: {{ include "mychart.headlessServiceName" . }}
   replicas: {{ .Values.replicaCount }}
-  revisionHistoryLimit: 5
-  strategy:
-    type: RollingUpdate
-    rollingUpdate:
-      maxSurge: 1
-      maxUnavailable: 0
+  podManagementPolicy: {{ .Values.statefulset.podManagementPolicy }}
+  updateStrategy:
+    type: {{ .Values.statefulset.updateStrategy.type }}
   selector:
     matchLabels:
       {{- include "mychart.selectorLabels" . | nindent 6 }}
@@ -102,17 +100,26 @@ spec:
             failureThreshold: {{ .Values.livenessProbe.failureThreshold }}
           securityContext:
             {{- toYaml .Values.securityContext | nindent 12 }}
-      {{- if or .Values.configMap.enabled .Values.persistence.enabled }}
+      {{- if .Values.configMap.enabled }}
       volumes:
-        {{- if .Values.configMap.enabled }}
         - name: app-config
           configMap:
             name: {{ include "mychart.configMapName" . }}
-        {{- end }}
-        {{- if .Values.persistence.enabled }}
-        - name: app-data
-          persistentVolumeClaim:
-            claimName: {{ include "mychart.dataName" . }}
-        {{- end }}
       {{- end }}
+  {{- if .Values.persistence.enabled }}
+  volumeClaimTemplates:
+    - metadata:
+        name: app-data
+        labels:
+          {{- include "mychart.labels" . | nindent 10 }}
+      spec:
+        accessModes:
+          {{- toYaml .Values.persistence.accessModes | nindent 10 }}
+        resources:
+          requests:
+            storage: {{ .Values.persistence.size }}
+        {{- if .Values.persistence.storageClass }}
+        storageClassName: {{ .Values.persistence.storageClass | quote }}
+        {{- end }}
+  {{- end }}
 {{- end }}

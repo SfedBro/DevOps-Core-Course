@@ -1,4 +1,4 @@
-{{- if and .Values.persistence.enabled .Values.persistence.hostPath.enabled }}
+{{- if and .Values.persistence.enabled .Values.persistence.hostPath.enabled (not .Values.statefulset.enabled) }}
 apiVersion: v1
 kind: PersistentVolume
 metadata:
