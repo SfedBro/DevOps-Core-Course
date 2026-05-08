@@ -1,0 +1,125 @@
+Lab 16 runtime evidence - 2026-05-08
+
+COMMAND: helm list -n monitoring
+NAME       NAMESPACE   REVISION   STATUS     CHART                         APP VERSION
+monitoring monitoring  2          deployed   kube-prometheus-stack-84.5.0   v0.90.1
+
+COMMAND: kubectl get po,svc -n monitoring -o wide
+pod/alertmanager-monitoring-kube-prometheus-alertmanager-0   2/2     Running   0
+pod/monitoring-grafana-56db8cb454-78fvh                      3/3     Running   0
+pod/monitoring-kube-prometheus-operator-7fdc7f994c-dmvc4     1/1     Running   0
+pod/monitoring-kube-state-metrics-676c88cc4-sdvzr            1/1     Running   0
+pod/monitoring-prometheus-node-exporter-xdhzd                1/1     Running   0
+pod/prometheus-monitoring-kube-prometheus-prometheus-0       2/2     Running   0
+
+service/monitoring-grafana                        ClusterIP   10.96.165.103   80/TCP
+service/monitoring-kube-prometheus-alertmanager   ClusterIP   10.96.199.173   9093/TCP,8080/TCP
+service/monitoring-kube-prometheus-prometheus     ClusterIP   10.96.104.81    9090/TCP,8080/TCP
+service/monitoring-kube-state-metrics             ClusterIP   10.96.25.210    8080/TCP
+service/monitoring-prometheus-node-exporter       ClusterIP   10.96.132.67    9100/TCP
+
+COMMAND: Prometheus dashboard answer queries
+statefulset_cpu_cores:
+pod=lab15-mychart-0 => 0.0016723325607857545
+pod=lab15-mychart-2 => 0.0015927530456056676
+pod=lab15-mychart-1 => 0.001550936156344943
+
+statefulset_memory_mib:
+pod=lab15-mychart-0 => 39.359375
+pod=lab15-mychart-2 => 35.07421875
+pod=lab15-mychart-1 => 35.3359375
+
+default_cpu_cores:
+<no series>
+
+node_memory_percent:
+70.28101658157458
+
+node_memory_used_mib:
+5486.375
+
+node_cpu_cores:
+16
+
+kubelet_running_pods:
+55
+
+kubelet_running_containers:
+created => 1
+exited => 75
+running => 59
+
+devops_lab15_network_receive_Bps:
+pod=lab15-mychart-0 => 270.103353520992
+pod=lab15-mychart-1 => 261.1997043355862
+pod=lab15-mychart-2 => 253.74754687043304
+
+devops_lab15_network_transmit_Bps:
+pod=lab15-mychart-0 => 1149.4912340930568
+pod=lab15-mychart-1 => 1189.630375377535
+pod=lab15-mychart-2 => 1129.1755582818498
+
+active_alerts:
+Watchdog => 1
+TargetDown,kube-system => 4
+KubePodNotReady,devops-helm => 3
+KubeDeploymentReplicasMismatch,devops-helm => 1
+etcdMembersDown,kube-system => 1
+etcdInsufficientMembers,kube-system => 1
+
+COMMAND: kubectl get all -n devops-lab16 -o wide
+pod/init-demo                      1/1     Running
+pod/init-source-7b9dfc57d8-88mvj   1/1     Running
+service/init-source                ClusterIP   10.96.46.67   8080/TCP
+deployment.apps/init-source        1/1
+
+COMMAND: kubectl logs init-demo -n devops-lab16 -c wait-for-service
+wget: can't connect to remote host (10.96.46.67): Connection refused
+waiting for init-source service
+init-source service is reachable
+
+COMMAND: kubectl logs init-demo -n devops-lab16 -c init-download
+Connecting to init-source.devops-lab16.svc.cluster.local:8080 (10.96.46.67:8080)
+saving to '/work-dir/index.html'
+index.html           100% |********************************|    90  0:00:00 ETA
+'/work-dir/index.html' saved
+downloaded file:
+lab16 init container demo
+source: init-source service
+destination: shared emptyDir volume
+
+COMMAND: kubectl exec init-demo -n devops-lab16 -c main-app -- cat /data/index.html
+lab16 init container demo
+source: init-source service
+destination: shared emptyDir volume
+
+COMMAND: kubectl get servicemonitor lab15-mychart -n monitoring -o yaml
+kind: ServiceMonitor
+metadata:
+  name: lab15-mychart
+  namespace: monitoring
+  labels:
+    release: monitoring
+spec:
+  endpoints:
+  - interval: 15s
+    path: /metrics
+    port: http
+  namespaceSelector:
+    matchNames:
+    - devops-lab15
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: lab15
+      app.kubernetes.io/name: mychart
+
+COMMAND: Prometheus ServiceMonitor queries
+up{namespace="devops-lab15",service="lab15-mychart"}:
+pod=lab15-mychart-2 => 1
+pod=lab15-mychart-0 => 1
+pod=lab15-mychart-1 => 1
+
+http_requests_total{namespace="devops-lab15",service="lab15-mychart",exported_endpoint="/metrics"}:
+pod=lab15-mychart-0,status_code=200 => 3
+pod=lab15-mychart-1,status_code=200 => 3
+pod=lab15-mychart-2,status_code=200 => 2

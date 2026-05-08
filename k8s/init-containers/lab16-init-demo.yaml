@@ -1,0 +1,115 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: devops-lab16
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: init-source-content
+  namespace: devops-lab16
+data:
+  index.html: |
+    lab16 init container demo
+    source: init-source service
+    destination: shared emptyDir volume
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: init-source
+  namespace: devops-lab16
+  labels:
+    app: init-source
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: init-source
+  template:
+    metadata:
+      labels:
+        app: init-source
+    spec:
+      containers:
+        - name: http
+          image: busybox:1.36
+          command:
+            - sh
+            - -c
+            - httpd -f -p 8080 -h /www
+          ports:
+            - name: http
+              containerPort: 8080
+          volumeMounts:
+            - name: content
+              mountPath: /www
+      volumes:
+        - name: content
+          configMap:
+            name: init-source-content
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: init-source
+  namespace: devops-lab16
+spec:
+  selector:
+    app: init-source
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: init-demo
+  namespace: devops-lab16
+  labels:
+    app: init-demo
+spec:
+  restartPolicy: Always
+  initContainers:
+    - name: wait-for-service
+      image: busybox:1.36
+      command:
+        - sh
+        - -c
+        - |
+          set -eu
+          until wget -qO- http://init-source.devops-lab16.svc.cluster.local:8080/index.html >/dev/null; do
+            echo "waiting for init-source service"
+            sleep 2
+          done
+          echo "init-source service is reachable"
+    - name: init-download
+      image: busybox:1.36
+      command:
+        - sh
+        - -c
+        - |
+          set -eu
+          wget -O /work-dir/index.html http://init-source.devops-lab16.svc.cluster.local:8080/index.html
+          echo "downloaded file:"
+          cat /work-dir/index.html
+      volumeMounts:
+        - name: workdir
+          mountPath: /work-dir
+  containers:
+    - name: main-app
+      image: busybox:1.36
+      command:
+        - sh
+        - -c
+        - |
+          echo "main container can read the init-downloaded file"
+          cat /data/index.html
+          sleep 3600
+      volumeMounts:
+        - name: workdir
+          mountPath: /data
+  volumes:
+    - name: workdir
+      emptyDir: {}
