@@ -1,0 +1,20 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: lab15-mychart
+  namespace: monitoring
+  labels:
+    release: monitoring
+    app.kubernetes.io/part-of: devops-core-course
+spec:
+  namespaceSelector:
+    matchNames:
+      - devops-lab15
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: mychart
+      app.kubernetes.io/instance: lab15
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 15s
