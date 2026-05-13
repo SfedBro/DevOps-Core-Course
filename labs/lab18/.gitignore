@@ -1,0 +1,7 @@
+app_python/result
+app_python/result-*
+app_python/venv*/
+app_python/freeze*.txt
+app_python/requirements-unpinned.txt
+*.tar
+*.tar.gz
