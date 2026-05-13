@@ -1,0 +1,21 @@
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "sfedbro-edge-api-lab17",
+	"main": "src/index.ts",
+	"compatibility_date": "2025-01-01",
+	"workers_dev": true,
+	"observability": {
+		"enabled": true,
+	},
+	"vars": {
+		"APP_NAME": "sfedbro-edge-api-lab17",
+		"COURSE_NAME": "devops-core",
+		"APP_ENV": "lab17",
+	},
+	"kv_namespaces": [
+		{
+			"binding": "SETTINGS",
+			"id": "7966fb3d76094e8c875b19ea311d9e33",
+		},
+	],
+}
